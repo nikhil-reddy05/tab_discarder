@@ -1,0 +1,33 @@
+# Ignore OS junk
+.DS_Store
+Thumbs.db
+
+# Ignore node/npm stuff (if added later)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore dist/build if you create packaged versions
+dist/
+build/
+*.zip
+
+# Ignore test or coverage folders (if any)
+coverage/
+*.log
+
+# Ignore screenshots/docs not needed for code
+screenshots/
+*.png
+*.jpg
+*.gif
+
+# Ignore system junk
+*.swp
+*.swo
+
+# Ignore env/secrets (if added in future)
+.env
