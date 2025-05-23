@@ -19,12 +19,6 @@ build/
 coverage/
 *.log
 
-# Ignore screenshots/docs not needed for code
-screenshots/
-*.png
-*.jpg
-*.gif
-
 # Ignore system junk
 *.swp
 *.swo
