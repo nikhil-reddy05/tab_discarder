@@ -1,8 +1,7 @@
-# Tab Discarder \:rocket:
+# Tab Discarder \:rocket:     ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 **Tab Discarder** is a lightweight Chrome extension that lets you manually discard (unload) tabs to free up memory and improve browser performance. It also visually marks already inactive (discarded) tabs so you can focus on what matters.
 
----
 
 ## \:star: Features
 
@@ -12,7 +11,6 @@
 \:new\_moon: Built-in Light / Dark mode toggle
 \:dart: Simple, fast, and clean UI
 
----
 
 ## \:information\_source: Known Limitation
 
@@ -20,7 +18,6 @@ Due to Chrome extension API restrictions, it's not possible to **fully detect ta
 
 > Clicking “Discard” again is harmless — Chrome will silently ignore the request if the tab is already unloaded.
 
----
 
 ## \:hammer\_and\_wrench: Tech Stack
 
@@ -28,10 +25,12 @@ Due to Chrome extension API restrictions, it's not possible to **fully detect ta
 * Vanilla JavaScript
 * Chrome Tabs API
 
----
 
 ## \:sparkles: Credits
 
 Inspired by Chrome's built-in tab discarding, but with a clean manual interface and better visibility.
 
----
+
+## 📝 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
