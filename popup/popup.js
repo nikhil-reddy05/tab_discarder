@@ -21,13 +21,17 @@ async function renderTabs() {
     div.className = "tab-item";
 
     const isInactive = tab.discarded === true;
+    const title = document.createElement("span");
+    title.className = "tab-title";
+    title.title = tab.url;
+    title.textContent = tab.title || tab.url;
 
-    div.innerHTML = `
-      <span class="tab-title" title="${tab.url}">${tab.title || tab.url}</span>
-      <button data-tabid="${tab.id}" ${isInactive ? "disabled" : ""}>
-        ${isInactive ? "Already Inactive" : "Discard"}
-      </button>
-    `;
+    const button = document.createElement("button");
+    button.dataset.tabid = tab.id;
+    button.disabled = isInactive;
+    button.textContent = isInactive ? "Already Inactive" : "Discard";
+
+    div.append(title, button);
     tabList.appendChild(div);
   }
 
