@@ -1,14 +1,54 @@
-function theme() {
-  const currentTheme = localStorage.getItem("theme") || "light";
+const { keys: storageKeys, get: getStoredSetting, set: setStoredSetting } =
+  globalThis.tabDiscarderStorage;
+
+function isTheme(value) {
+  return value === "light" || value === "dark";
+}
+
+function getLegacyTheme() {
+  try {
+    return window.localStorage.getItem(storageKeys.THEME);
+  } catch {
+    return null;
+  }
+}
+
+function clearLegacyTheme() {
+  try {
+    window.localStorage.removeItem(storageKeys.THEME);
+  } catch {
+    // The migrated theme remains available in extension storage.
+  }
+}
+
+function applyTheme(currentTheme) {
   document.documentElement.setAttribute("data-theme", currentTheme);
   document.getElementById("toggleTheme").checked = currentTheme === "dark";
+}
 
-  document.getElementById("toggleTheme").addEventListener("change", () => {
+async function theme() {
+  let currentTheme = await getStoredSetting(storageKeys.THEME);
+
+  if (!isTheme(currentTheme)) {
+    const legacyTheme = getLegacyTheme();
+    currentTheme = isTheme(legacyTheme) ? legacyTheme : "light";
+
+    if (
+      isTheme(legacyTheme) &&
+      (await setStoredSetting(storageKeys.THEME, legacyTheme))
+    ) {
+      clearLegacyTheme();
+    }
+  }
+
+  applyTheme(currentTheme);
+
+  document.getElementById("toggleTheme").addEventListener("change", async () => {
     const newTheme = document.getElementById("toggleTheme").checked
       ? "dark"
       : "light";
-    document.documentElement.setAttribute("data-theme", newTheme);
-    localStorage.setItem("theme", newTheme);
+    applyTheme(newTheme);
+    await setStoredSetting(storageKeys.THEME, newTheme);
   });
 }
 
