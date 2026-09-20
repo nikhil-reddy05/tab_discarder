@@ -1,5 +1,6 @@
 const { keys: storageKeys, get: getStoredSetting, set: setStoredSetting } =
   globalThis.tabDiscarderStorage;
+const { deriveTabState, states: tabStates } = globalThis.tabDiscarderTabState;
 
 function isTheme(value) {
   return value === "light" || value === "dark";
@@ -52,43 +53,25 @@ async function theme() {
   });
 }
 
-async function renderTabs() {
-  const tabList = document.getElementById("tabList");
-  const tabs = await chrome.tabs.query({});
+function formatTabSummary(tabs) {
+  const sleepingCount = tabs.filter(
+    (tab) => deriveTabState(tab) === tabStates.SLEEPING,
+  ).length;
+  const awakeCount = tabs.length - sleepingCount;
 
-  for (const tab of tabs) {
-    const div = document.createElement("div");
-    div.className = "tab-item";
+  return `${awakeCount} awake · ${sleepingCount} sleeping`;
+}
 
-    const isInactive = tab.discarded === true;
-    const title = document.createElement("span");
-    title.className = "tab-title";
-    title.title = tab.url;
-    title.textContent = tab.title || tab.url;
+async function renderTabSummary() {
+  const summary = document.getElementById("tabSummary");
 
-    const button = document.createElement("button");
-    button.dataset.tabid = tab.id;
-    button.disabled = isInactive;
-    button.textContent = isInactive ? "Already Inactive" : "Discard";
-
-    div.append(title, button);
-    tabList.appendChild(div);
+  try {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    summary.textContent = formatTabSummary(tabs);
+  } catch {
+    summary.textContent = "Tab summary unavailable";
   }
-
-  tabList.addEventListener("click", async (e) => {
-    if (e.target.tagName === "BUTTON" && !e.target.disabled) {
-      const tabId = parseInt(e.target.getAttribute("data-tabid"));
-      const discarded = await chrome.tabs.discard(tabId);
-      if (discarded && discarded.discarded === true) {
-        e.target.textContent = "Discarded";
-        e.target.disabled = true;
-      } else {
-        e.target.textContent = "Not Discardable";
-        e.target.disabled = true;
-      }
-    }
-  });
 }
 
 theme();
-renderTabs();
+renderTabSummary();

@@ -1,19 +1,95 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tab Discarder</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <div class="header">
-      <h3>Open Tabs</h3>
-      <label class="switch">
-        <input type="checkbox" id="toggleTheme" />
-        <span class="slider round"></span>
-      </label>
-    </div>
-    <div id="tabList"></div>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <div class="brand">
+          <img class="brand-icon" src="../icons/icon48.png" alt="" />
+          <div>
+            <h1>Tab Discarder</h1>
+            <p id="tabSummary" class="tab-summary" aria-live="polite">
+              Loading tab summary…
+            </p>
+          </div>
+        </div>
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="Settings coming soon"
+          title="Settings will be available in a future update"
+          disabled
+        >
+          <span aria-hidden="true">⚙</span>
+        </button>
+      </header>
+
+      <section class="search-section" aria-label="Search tabs">
+        <label class="visually-hidden" for="tabSearch">Search tabs</label>
+        <input
+          id="tabSearch"
+          type="search"
+          placeholder="Search tabs..."
+          aria-describedby="searchAvailability"
+          disabled
+        />
+        <p id="searchAvailability" class="visually-hidden">
+          Search will be available in a future update.
+        </p>
+      </section>
+
+      <section class="content-section quick-actions" aria-labelledby="quickActionsTitle">
+        <div class="section-heading">
+          <h2 id="quickActionsTitle">Quick actions</h2>
+        </div>
+        <div class="quick-action-list">
+          <button type="button" disabled>Sleep other tabs</button>
+          <button type="button" disabled>Sleep this window</button>
+          <button type="button" disabled>Sleep this group</button>
+        </div>
+        <p class="availability-note">Actions will be available in upcoming updates.</p>
+      </section>
+
+      <section id="recentlyAwakenedSection" class="content-section" hidden>
+        <div class="section-heading">
+          <h2>Recently awakened</h2>
+        </div>
+        <div id="recentlyAwakenedList"></div>
+      </section>
+
+      <section id="groupsSection" class="content-section" hidden>
+        <div class="section-heading">
+          <h2>Groups</h2>
+        </div>
+        <div id="groupsList"></div>
+      </section>
+
+      <section class="content-section window-section" aria-labelledby="thisWindowTitle">
+        <div class="section-heading">
+          <h2 id="thisWindowTitle">This window</h2>
+        </div>
+        <div id="tabList" class="empty-section" role="status">
+          Tab rows will appear here in the next update.
+        </div>
+      </section>
+
+      <footer class="popup-footer">
+        <span>Save memory. A faster, calmer browser.</span>
+        <label class="theme-control" for="toggleTheme">
+          <span class="visually-hidden">Use dark theme</span>
+          <input type="checkbox" id="toggleTheme" />
+          <span class="theme-toggle" aria-hidden="true"></span>
+        </label>
+      </footer>
+    </main>
+
     <script src="../lib/storage.js"></script>
+    <script src="../lib/tab-state.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
