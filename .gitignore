@@ -25,3 +25,8 @@ coverage/
 
 # Ignore env/secrets (if added in future)
 .env
+
+# helper files
+AGENTS.MD
+TAB_DISCARDER_V3_ISSUE_TRACKER.md
+V3_BASELINE.md
