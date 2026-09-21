@@ -1,6 +1,12 @@
 const { keys: storageKeys, get: getStoredSetting, set: setStoredSetting } =
   globalThis.tabDiscarderStorage;
 const { deriveTabState, states: tabStates } = globalThis.tabDiscarderTabState;
+const { filterTabs } = globalThis.tabDiscarderTabFilter;
+const { discardTab, resultStatuses } = globalThis.tabDiscarderDiscardService;
+const { renderTabList, renderTabListError, renderTabListNoResults } =
+  globalThis.tabDiscarderTabList;
+
+let currentWindowTabs = [];
 
 function isTheme(value) {
   return value === "light" || value === "dark";
@@ -62,16 +68,65 @@ function formatTabSummary(tabs) {
   return `${awakeCount} awake · ${sleepingCount} sleeping`;
 }
 
-async function renderTabSummary() {
+async function renderCurrentWindowTabs() {
   const summary = document.getElementById("tabSummary");
+  const tabList = document.getElementById("tabList");
 
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
-    summary.textContent = formatTabSummary(tabs);
+    renderWindowTabs(tabs);
   } catch {
     summary.textContent = "Tab summary unavailable";
+    renderTabListError(tabList);
   }
 }
 
+function renderWindowTabs(tabs) {
+  currentWindowTabs = tabs;
+  document.getElementById("tabSummary").textContent = formatTabSummary(tabs);
+  renderFilteredTabs();
+}
+
+function renderFilteredTabs() {
+  const tabList = document.getElementById("tabList");
+  const filteredTabs = filterTabs(
+    currentWindowTabs,
+    document.getElementById("tabSearch").value,
+  );
+
+  if (filteredTabs.length === 0 && currentWindowTabs.length > 0) {
+    renderTabListNoResults(tabList);
+    return;
+  }
+
+  renderTabList(
+    tabList,
+    filteredTabs,
+    globalThis.tabDiscarderTabState,
+    sleepTab,
+  );
+}
+
+async function sleepTab(tabId) {
+  const result = await discardTab(tabId);
+
+  if (result.status === resultStatuses.SUCCESS || result.status === resultStatuses.SKIPPED) {
+    renderWindowTabs(
+      currentWindowTabs.map((tab) => (tab.id === tabId ? result.tab : tab)),
+    );
+    return result;
+  }
+
+  renderWindowTabs(currentWindowTabs);
+  return result;
+}
+
+function initializeSearch() {
+  document.getElementById("tabSearch").addEventListener("input", () => {
+    renderFilteredTabs();
+  });
+}
+
 theme();
-renderTabSummary();
+initializeSearch();
+renderCurrentWindowTabs();

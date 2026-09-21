@@ -35,11 +35,10 @@
           id="tabSearch"
           type="search"
           placeholder="Search tabs..."
-          aria-describedby="searchAvailability"
-          disabled
+          aria-describedby="searchHint"
         />
-        <p id="searchAvailability" class="visually-hidden">
-          Search will be available in a future update.
+        <p id="searchHint" class="visually-hidden">
+          Filter tabs in this window by title or address.
         </p>
       </section>
 
@@ -73,9 +72,7 @@
         <div class="section-heading">
           <h2 id="thisWindowTitle">This window</h2>
         </div>
-        <div id="tabList" class="empty-section" role="status">
-          Tab rows will appear here in the next update.
-        </div>
+        <ul id="tabList" class="tab-list" aria-label="Tabs in this window"></ul>
       </section>
 
       <footer class="popup-footer">
@@ -90,6 +87,9 @@
 
     <script src="../lib/storage.js"></script>
     <script src="../lib/tab-state.js"></script>
+    <script src="../lib/tab-filter.js"></script>
+    <script src="../lib/discard-service.js"></script>
+    <script src="tab-list.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

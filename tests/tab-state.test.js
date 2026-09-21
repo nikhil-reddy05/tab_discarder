@@ -6,6 +6,10 @@ const {
   deriveTabState,
   getDiscardEligibility,
 } = require("../lib/tab-state.js");
+const {
+  getTabTitle,
+  getTabPresentation,
+} = require("../popup/tab-list.js");
 
 test("derives the display state using the safety-first precedence", () => {
   assert.equal(deriveTabState({ active: true, discarded: true }), states.ACTIVE);
@@ -48,4 +52,36 @@ test("allows a normal awake background tab and supports future policy settings",
     getDiscardEligibility({ pinned: true }, { protectPinned: false }).eligible,
     true,
   );
+});
+
+test("renders titles with useful fallbacks", () => {
+  assert.equal(getTabTitle({ title: "  Project dashboard  " }), "Project dashboard");
+  assert.equal(getTabTitle({ title: "", url: "https://example.com/path" }), "example.com");
+  assert.equal(getTabTitle({ title: "", url: "chrome://settings" }), "settings");
+  assert.equal(getTabTitle({}), "Untitled tab");
+});
+
+test("maps centralized state and eligibility to the tab-row presentation", () => {
+  const tabStateModel = { deriveTabState, getDiscardEligibility };
+
+  assert.deepEqual(getTabPresentation({ active: true }, tabStateModel), {
+    kind: "badge",
+    label: "Active",
+  });
+  assert.deepEqual(getTabPresentation({ discarded: true }, tabStateModel), {
+    kind: "badge",
+    label: "Sleeping",
+  });
+  assert.deepEqual(getTabPresentation({ audible: true }, tabStateModel), {
+    kind: "badge",
+    label: "Playing audio",
+  });
+  assert.deepEqual(getTabPresentation({ pinned: true }, tabStateModel), {
+    kind: "badge",
+    label: "Pinned",
+  });
+  assert.deepEqual(getTabPresentation({}, tabStateModel), {
+    kind: "action",
+    label: "Sleep",
+  });
 });
