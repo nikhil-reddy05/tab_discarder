@@ -2,7 +2,8 @@ const { keys: storageKeys, get: getStoredSetting, set: setStoredSetting } =
   globalThis.tabDiscarderStorage;
 const { deriveTabState, states: tabStates } = globalThis.tabDiscarderTabState;
 const { filterTabs } = globalThis.tabDiscarderTabFilter;
-const { discardTab, resultStatuses } = globalThis.tabDiscarderDiscardService;
+const { discardTab, discardTabs, resultStatuses } =
+  globalThis.tabDiscarderDiscardService;
 const { renderTabList, renderTabListError, renderTabListNoResults } =
   globalThis.tabDiscarderTabList;
 
@@ -121,12 +122,55 @@ async function sleepTab(tabId) {
   return result;
 }
 
+function formatBulkDiscardSummary(summary) {
+  const parts = [];
+
+  if (summary.discarded > 0) {
+    parts.push(`${summary.discarded} slept`);
+  }
+  if (summary.skipped > 0) {
+    parts.push(`${summary.skipped} skipped`);
+  }
+  if (summary.failed > 0) {
+    parts.push(`${summary.failed} failed`);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : "No tabs to sleep.";
+}
+
+async function sleepOtherTabs() {
+  const action = document.getElementById("sleepOtherTabs");
+  const status = document.getElementById("bulkActionStatus");
+  action.disabled = true;
+  status.textContent = "Sleeping eligible tabs…";
+
+  try {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const result = await discardTabs(tabs.map((tab) => tab.id));
+    status.textContent = formatBulkDiscardSummary(result.summary);
+    await renderCurrentWindowTabs();
+    return result;
+  } catch {
+    status.textContent = "Could not sleep tabs right now.";
+    return { status: resultStatuses.ERROR };
+  } finally {
+    action.disabled = false;
+  }
+}
+
 function initializeSearch() {
   document.getElementById("tabSearch").addEventListener("input", () => {
     renderFilteredTabs();
   });
 }
 
+function initializeQuickActions() {
+  document.getElementById("sleepOtherTabs").addEventListener("click", () => {
+    sleepOtherTabs();
+  });
+}
+
 theme();
 initializeSearch();
+initializeQuickActions();
 renderCurrentWindowTabs();

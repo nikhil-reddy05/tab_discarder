@@ -2,7 +2,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const tabStateModel = require("../lib/tab-state.js");
-const { discardTab, resultStatuses } = require("../lib/discard-service.js");
+const {
+  discardTab,
+  discardTabs,
+  resultStatuses,
+} = require("../lib/discard-service.js");
 
 function createTabsApi(tab, { discardResult, discardError, getError } = {}) {
   const calls = [];
@@ -72,4 +76,48 @@ test("returns an error result when discarding fails without throwing", async () 
     tab,
     error: { message: "Tab cannot be discarded" },
   });
+});
+
+test("continues a batch after failures and applies policy to every tab", async () => {
+  const tabs = new Map([
+    [1, { id: 1, active: true }],
+    [2, { id: 2, active: false }],
+    [3, { id: 3, pinned: true }],
+    [4, { id: 4, active: false }],
+    [5, { id: 5, discarded: true }],
+    [6, { id: 6, audible: true }],
+  ]);
+  const discardCalls = [];
+  const tabsApi = {
+    async get(tabId) {
+      return tabs.get(tabId);
+    },
+    async discard(tabId) {
+      discardCalls.push(tabId);
+      if (tabId === 4) {
+        throw new Error("Tab cannot be discarded");
+      }
+      return { ...tabs.get(tabId), discarded: true };
+    },
+  };
+
+  const result = await discardTabs([...tabs.keys()], { tabsApi, tabStateModel });
+
+  assert.deepEqual(discardCalls, [2, 4]);
+  assert.deepEqual(result.summary, {
+    discarded: 1,
+    skipped: 4,
+    failed: 1,
+  });
+  assert.deepEqual(
+    result.results.map(({ status, tabId }) => [status, tabId]),
+    [
+      [resultStatuses.SKIPPED, 1],
+      [resultStatuses.SUCCESS, 2],
+      [resultStatuses.SKIPPED, 3],
+      [resultStatuses.ERROR, 4],
+      [resultStatuses.SKIPPED, 5],
+      [resultStatuses.SKIPPED, 6],
+    ],
+  );
 });

@@ -180,6 +180,12 @@ h2 {
   white-space: nowrap;
 }
 
+.quick-action-list button:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+}
+
 .availability-note {
   margin-top: 7px;
   color: var(--muted-text);

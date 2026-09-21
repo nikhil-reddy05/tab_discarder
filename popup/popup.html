@@ -47,11 +47,13 @@
           <h2 id="quickActionsTitle">Quick actions</h2>
         </div>
         <div class="quick-action-list">
-          <button type="button" disabled>Sleep other tabs</button>
+          <button id="sleepOtherTabs" type="button">Sleep other tabs</button>
           <button type="button" disabled>Sleep this window</button>
           <button type="button" disabled>Sleep this group</button>
         </div>
-        <p class="availability-note">Actions will be available in upcoming updates.</p>
+        <p id="bulkActionStatus" class="availability-note" role="status" aria-live="polite">
+          Sleep other tabs skips protected tabs.
+        </p>
       </section>
 
       <section id="recentlyAwakenedSection" class="content-section" hidden>
