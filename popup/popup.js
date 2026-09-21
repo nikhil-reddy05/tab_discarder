@@ -6,6 +6,8 @@ const { discardTab, discardTabs, resultStatuses } =
   globalThis.tabDiscarderDiscardService;
 const { renderTabList, renderTabListError, renderTabListNoResults } =
   globalThis.tabDiscarderTabList;
+const { getUngroupedTabs, buildGroupSummaries, renderGroupList } =
+  globalThis.tabDiscarderGroupList;
 
 let currentWindowTabs = [];
 
@@ -76,6 +78,7 @@ async function renderCurrentWindowTabs() {
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
     renderWindowTabs(tabs);
+    await renderCurrentWindowGroups(tabs);
   } catch {
     summary.textContent = "Tab summary unavailable";
     renderTabListError(tabList);
@@ -88,14 +91,67 @@ function renderWindowTabs(tabs) {
   renderFilteredTabs();
 }
 
+async function renderCurrentWindowGroups(tabs) {
+  const section = document.getElementById("groupsSection");
+  const list = document.getElementById("groupsList");
+  const windowId = tabs.find((tab) => Number.isInteger(tab.windowId))?.windowId;
+
+  if (!Number.isInteger(windowId)) {
+    section.hidden = true;
+    list.replaceChildren();
+    return;
+  }
+
+  try {
+    // Group IDs are used only to join this live popup snapshot; they are never
+    // persisted because Chrome does not guarantee them across browser sessions.
+    const groups = await chrome.tabGroups.query({ windowId });
+    const groupSummaries = buildGroupSummaries(
+      groups,
+      tabs,
+      globalThis.tabDiscarderTabState,
+    );
+    renderGroupList(list, groupSummaries, sleepGroup);
+    section.hidden = groupSummaries.length === 0;
+  } catch {
+    section.hidden = true;
+    list.replaceChildren();
+  }
+}
+
+async function sleepGroup(groupId) {
+  const status = document.getElementById("bulkActionStatus");
+  status.textContent = "Sleeping eligible group tabs…";
+
+  try {
+    const memberTabs = await chrome.tabs.query({ groupId });
+    const result = await discardTabs(
+      memberTabs.map((tab) => tab.id),
+      {
+        // Re-check membership after the group query so a tab that moved to a
+        // different group before discard is skipped rather than affected.
+        shouldDiscardTab: (tab) => tab.groupId === groupId,
+      },
+    );
+    status.textContent = formatBulkDiscardSummary(result.summary);
+    return result;
+  } catch {
+    status.textContent = "Could not sleep this group right now.";
+    return { status: resultStatuses.ERROR };
+  } finally {
+    await renderCurrentWindowTabs();
+  }
+}
+
 function renderFilteredTabs() {
   const tabList = document.getElementById("tabList");
+  const ungroupedTabs = getUngroupedTabs(currentWindowTabs);
   const filteredTabs = filterTabs(
-    currentWindowTabs,
+    ungroupedTabs,
     document.getElementById("tabSearch").value,
   );
 
-  if (filteredTabs.length === 0 && currentWindowTabs.length > 0) {
+  if (filteredTabs.length === 0 && ungroupedTabs.length > 0) {
     renderTabListNoResults(tabList);
     return;
   }

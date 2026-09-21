@@ -12,6 +12,8 @@ function createElement() {
     disabled: false,
     textContent: "",
     value: "",
+    hidden: false,
+    replaceChildren() {},
     addEventListener(type, listener) {
       listeners.set(type, listener);
     },
@@ -21,28 +23,48 @@ function createElement() {
   };
 }
 
-function loadPopup({ tabs, discardTabs, discardTab = async () => ({}) }) {
+function loadPopup({
+  tabs,
+  tabGroups = [],
+  groupTabs = [],
+  discardTabs,
+  discardTab = async () => ({}),
+}) {
   const elements = new Map(
     [
       "toggleTheme",
       "tabSummary",
       "tabList",
       "tabSearch",
+      "groupsSection",
+      "groupsList",
       "sleepOtherTabs",
       "sleepThisWindow",
       "bulkActionStatus",
     ].map((id) => [id, createElement()]),
   );
   const queryCalls = [];
+  const groupQueryCalls = [];
   const renderCalls = [];
+  const groupRenderCalls = [];
   let singleTabSleep;
+  let groupSleep;
 
   const context = {
     chrome: {
       tabs: {
         async query(queryInfo) {
           queryCalls.push(queryInfo);
+          if (Number.isInteger(queryInfo.groupId)) {
+            return groupTabs;
+          }
           return tabs;
+        },
+      },
+      tabGroups: {
+        async query(queryInfo) {
+          groupQueryCalls.push(queryInfo);
+          return tabGroups;
         },
       },
     },
@@ -82,6 +104,22 @@ function loadPopup({ tabs, discardTabs, discardTab = async () => ({}) }) {
       renderTabListError() {},
       renderTabListNoResults() {},
     },
+    tabDiscarderGroupList: {
+      getUngroupedTabs(currentTabs) {
+        return currentTabs.filter((tab) => tab.groupId === -1 || tab.groupId == null);
+      },
+      buildGroupSummaries(groups, currentTabs) {
+        return groups.map((group) => ({
+          groupId: group.id,
+          title: group.title || "Untitled group",
+          totalCount: currentTabs.filter((tab) => tab.groupId === group.id).length,
+        }));
+      },
+      renderGroupList(_list, summaries, onSleepGroup) {
+        groupRenderCalls.push(summaries);
+        groupSleep = onSleepGroup;
+      },
+    },
   };
   context.globalThis = context;
 
@@ -93,10 +131,68 @@ function loadPopup({ tabs, discardTabs, discardTab = async () => ({}) }) {
   return {
     elements,
     queryCalls,
+    groupQueryCalls,
     renderCalls,
+    groupRenderCalls,
     sleepSingleTab: (...args) => singleTabSleep(...args),
+    sleepGroup: (...args) => groupSleep(...args),
   };
 }
+
+test("loads current-window group metadata and joins it to current tabs", async () => {
+  const popup = loadPopup({
+    tabs: [
+      { id: 1, windowId: 7, groupId: 3 },
+      { id: 2, windowId: 7, groupId: -1 },
+    ],
+    tabGroups: [{ id: 3, title: "Research", color: "blue" }],
+    async discardTabs() {
+      return { summary: { discarded: 0, skipped: 0, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(popup.groupQueryCalls.length, 1);
+  assert.equal(popup.groupQueryCalls[0].windowId, 7);
+  assert.equal(popup.groupRenderCalls.length, 1);
+  assert.equal(popup.groupRenderCalls[0][0].title, "Research");
+  assert.equal(popup.groupRenderCalls[0][0].totalCount, 1);
+  assert.equal(popup.elements.get("groupsSection").hidden, false);
+});
+
+test("Sleep group resolves live members and protects tabs that leave the group", async () => {
+  const discardCalls = [];
+  const popup = loadPopup({
+    tabs: [
+      { id: 1, windowId: 7, groupId: 3 },
+      { id: 2, windowId: 7, groupId: 3, active: true },
+      { id: 3, windowId: 7, groupId: -1 },
+    ],
+    tabGroups: [{ id: 3, title: "Research", color: "blue" }],
+    groupTabs: [
+      { id: 1, groupId: 3 },
+      { id: 2, groupId: 3, active: true },
+    ],
+    async discardTabs(tabIds, options) {
+      discardCalls.push({ tabIds, options });
+      return { summary: { discarded: 1, skipped: 1, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  await popup.sleepGroup(3);
+
+  assert.equal(
+    popup.queryCalls.some((query) => query.groupId === 3),
+    true,
+  );
+  assert.deepEqual(discardCalls[0].tabIds, [1, 2]);
+  assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: 3 }), true);
+  assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: 4 }), false);
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 1 skipped");
+  assert.equal(popup.groupRenderCalls.length, 2);
+});
 
 test("Sleep this window uses the shared current-window batch action", async () => {
   const tabs = [

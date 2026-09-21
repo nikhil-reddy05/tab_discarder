@@ -175,3 +175,39 @@ test("continues a batch after an unconfirmed discard and applies policy to every
     ],
   );
 });
+
+test("skips a tab that leaves a selected group before its discard is attempted", async () => {
+  const tabs = new Map([
+    [1, { id: 1, groupId: 20, active: true }],
+    [2, { id: 2, groupId: 20, active: false }],
+    [3, { id: 3, groupId: 20, pinned: true }],
+    [4, { id: 4, groupId: 20, discarded: true }],
+    [5, { id: 5, groupId: 21, active: false }],
+  ]);
+  const discardCalls = [];
+  const tabsApi = {
+    async get(tabId) {
+      return tabs.get(tabId);
+    },
+    async discard(tabId) {
+      discardCalls.push(tabId);
+      const discardedTab = { ...tabs.get(tabId), discarded: true };
+      tabs.set(tabId, discardedTab);
+      return discardedTab;
+    },
+  };
+
+  const result = await discardTabs([1, 2, 3, 4, 5], {
+    tabsApi,
+    tabStateModel,
+    shouldDiscardTab: (tab) => tab.groupId === 20,
+  });
+
+  assert.deepEqual(discardCalls, [2]);
+  assert.deepEqual(result.summary, {
+    discarded: 1,
+    skipped: 4,
+    failed: 0,
+  });
+  assert.equal(result.results[4].reason, "no-longer-targeted");
+});
