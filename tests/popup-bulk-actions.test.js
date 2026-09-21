@@ -21,7 +21,7 @@ function createElement() {
   };
 }
 
-function loadPopup({ tabs, discardTabs }) {
+function loadPopup({ tabs, discardTabs, discardTab = async () => ({}) }) {
   const elements = new Map(
     [
       "toggleTheme",
@@ -35,6 +35,7 @@ function loadPopup({ tabs, discardTabs }) {
   );
   const queryCalls = [];
   const renderCalls = [];
+  let singleTabSleep;
 
   const context = {
     chrome: {
@@ -69,13 +70,14 @@ function loadPopup({ tabs, discardTabs }) {
     },
     tabDiscarderTabFilter: { filterTabs: (currentTabs) => currentTabs },
     tabDiscarderDiscardService: {
-      discardTab: async () => ({}),
+      discardTab,
       discardTabs,
       resultStatuses: { SUCCESS: "success", SKIPPED: "skipped", ERROR: "error" },
     },
     tabDiscarderTabList: {
-      renderTabList(_list, renderedTabs) {
+      renderTabList(_list, renderedTabs, _tabStateModel, onSleep) {
         renderCalls.push(renderedTabs);
+        singleTabSleep = onSleep;
       },
       renderTabListError() {},
       renderTabListNoResults() {},
@@ -88,7 +90,12 @@ function loadPopup({ tabs, discardTabs }) {
     context,
   );
 
-  return { elements, queryCalls, renderCalls };
+  return {
+    elements,
+    queryCalls,
+    renderCalls,
+    sleepSingleTab: (...args) => singleTabSleep(...args),
+  };
 }
 
 test("Sleep this window uses the shared current-window batch action", async () => {
@@ -115,4 +122,27 @@ test("Sleep this window uses the shared current-window batch action", async () =
   assert.equal(popup.elements.get("sleepThisWindow").disabled, false);
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 2 skipped");
   assert.ok(popup.renderCalls.length > 0);
+});
+
+test("single-tab Sleep refreshes the current window after the discard attempt", async () => {
+  const tabs = [{ id: 2, active: false, discarded: false }];
+  const discardCalls = [];
+  const popup = loadPopup({
+    tabs,
+    async discardTab(tabId) {
+      discardCalls.push(tabId);
+      return { status: "success", tabId, tab: { ...tabs[0], discarded: true } };
+    },
+    async discardTabs() {
+      return { summary: { discarded: 0, skipped: 0, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  await popup.sleepSingleTab(2);
+
+  assert.deepEqual(discardCalls, [2]);
+  assert.equal(popup.queryCalls.length, 2);
+  assert.ok(popup.queryCalls.every((query) => query.currentWindow === true));
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
 });

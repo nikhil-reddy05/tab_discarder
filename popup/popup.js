@@ -109,17 +109,18 @@ function renderFilteredTabs() {
 }
 
 async function sleepTab(tabId) {
-  const result = await discardTab(tabId);
+  const status = document.getElementById("bulkActionStatus");
 
-  if (result.status === resultStatuses.SUCCESS || result.status === resultStatuses.SKIPPED) {
-    renderWindowTabs(
-      currentWindowTabs.map((tab) => (tab.id === tabId ? result.tab : tab)),
-    );
+  try {
+    const result = await discardTab(tabId);
+    status.textContent =
+      result.status === resultStatuses.SUCCESS
+        ? "Tab slept."
+        : "Could not sleep this tab.";
     return result;
+  } finally {
+    await renderCurrentWindowTabs();
   }
-
-  renderWindowTabs(currentWindowTabs);
-  return result;
 }
 
 function formatBulkDiscardSummary(summary) {
