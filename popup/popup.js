@@ -138,10 +138,14 @@ function formatBulkDiscardSummary(summary) {
   return parts.length > 0 ? parts.join(" · ") : "No tabs to sleep.";
 }
 
-async function sleepOtherTabs() {
-  const action = document.getElementById("sleepOtherTabs");
+function setCurrentWindowSleepActionsDisabled(disabled) {
+  document.getElementById("sleepOtherTabs").disabled = disabled;
+  document.getElementById("sleepThisWindow").disabled = disabled;
+}
+
+async function sleepEligibleBackgroundTabsInCurrentWindow() {
   const status = document.getElementById("bulkActionStatus");
-  action.disabled = true;
+  setCurrentWindowSleepActionsDisabled(true);
   status.textContent = "Sleeping eligible tabs…";
 
   try {
@@ -154,8 +158,19 @@ async function sleepOtherTabs() {
     status.textContent = "Could not sleep tabs right now.";
     return { status: resultStatuses.ERROR };
   } finally {
-    action.disabled = false;
+    setCurrentWindowSleepActionsDisabled(false);
   }
+}
+
+// Under the current V3 scope these labels have identical current-window
+// semantics; separate wrappers retain their UI intent for a future
+// cross-window action without duplicating the batch implementation.
+function sleepOtherTabs() {
+  return sleepEligibleBackgroundTabsInCurrentWindow();
+}
+
+function sleepThisWindow() {
+  return sleepEligibleBackgroundTabsInCurrentWindow();
 }
 
 function initializeSearch() {
@@ -165,9 +180,12 @@ function initializeSearch() {
 }
 
 function initializeQuickActions() {
-  document.getElementById("sleepOtherTabs").addEventListener("click", () => {
-    sleepOtherTabs();
-  });
+  document
+    .getElementById("sleepOtherTabs")
+    .addEventListener("click", () => sleepOtherTabs());
+  document
+    .getElementById("sleepThisWindow")
+    .addEventListener("click", () => sleepThisWindow());
 }
 
 theme();
