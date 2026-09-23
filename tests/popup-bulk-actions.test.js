@@ -40,6 +40,7 @@ function loadPopup({
       "groupsList",
       "sleepOtherTabs",
       "sleepThisWindow",
+      "sleepThisGroup",
       "bulkActionStatus",
     ].map((id) => [id, createElement()]),
   );
@@ -105,6 +106,9 @@ function loadPopup({
       renderTabListNoResults() {},
     },
     tabDiscarderGroupList: {
+      isGroupedTab(tab) {
+        return Number.isInteger(tab?.groupId) && tab.groupId !== -1;
+      },
       getUngroupedTabs(currentTabs) {
         return currentTabs.filter((tab) => tab.groupId === -1 || tab.groupId == null);
       },
@@ -192,6 +196,53 @@ test("Sleep group resolves live members and protects tabs that leave the group",
   assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: 4 }), false);
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 1 skipped");
   assert.equal(popup.groupRenderCalls.length, 2);
+});
+
+test("Sleep this group is available for an active grouped tab and reuses Sleep group", async () => {
+  const discardCalls = [];
+  const popup = loadPopup({
+    tabs: [
+      { id: 1, windowId: 7, groupId: 3 },
+      { id: 2, windowId: 7, groupId: 3, active: true },
+      { id: 3, windowId: 7, groupId: -1 },
+    ],
+    tabGroups: [{ id: 3, title: "Research", color: "blue" }],
+    groupTabs: [
+      { id: 1, groupId: 3 },
+      { id: 2, groupId: 3, active: true },
+    ],
+    async discardTabs(tabIds, options) {
+      discardCalls.push({ tabIds, options });
+      return { summary: { discarded: 1, skipped: 1, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const action = popup.elements.get("sleepThisGroup");
+  assert.equal(action.hidden, false);
+  assert.equal(action.disabled, false);
+
+  await action.getListener("click")();
+
+  assert.deepEqual(discardCalls[0].tabIds, [1, 2]);
+  assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: 3 }), true);
+  assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: -1 }), false);
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 1 skipped");
+});
+
+test("Sleep this group is hidden for an active ungrouped tab", async () => {
+  const popup = loadPopup({
+    tabs: [{ id: 1, windowId: 7, groupId: -1, active: true }],
+    async discardTabs() {
+      return { summary: { discarded: 0, skipped: 0, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const action = popup.elements.get("sleepThisGroup");
+  assert.equal(action.hidden, true);
+  assert.equal(action.disabled, true);
 });
 
 test("Sleep this window uses the shared current-window batch action", async () => {

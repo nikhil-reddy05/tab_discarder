@@ -41,6 +41,7 @@
         groupId: group.id,
         title: getGroupTitle(group),
         color: getGroupColor(group),
+        memberTabs,
         totalCount: memberTabs.length,
         awakeCount: memberTabs.length - sleepingCount,
         sleepingCount,
@@ -48,15 +49,41 @@
     });
   }
 
-  function createGroupRow(document, groupSummary, onSleepGroup) {
+  function createGroupMemberList(document, groupSummary, renderOptions) {
+    const memberList = document.createElement("ul");
+    memberList.className = "group-member-list tab-list";
+    memberList.id = `group-members-${groupSummary.groupId}`;
+    memberList.hidden = true;
+    memberList.setAttribute("aria-label", `Tabs in ${groupSummary.title}`);
+
+    if (
+      renderOptions.tabListRenderer &&
+      renderOptions.tabStateModel &&
+      renderOptions.onSleepTab
+    ) {
+      renderOptions.tabListRenderer.renderTabList(
+        memberList,
+        groupSummary.memberTabs,
+        renderOptions.tabStateModel,
+        renderOptions.onSleepTab,
+      );
+    }
+
+    return memberList;
+  }
+
+  function createGroupRow(document, groupSummary, onSleepGroup, renderOptions) {
     const row = document.createElement("li");
     row.className = "group-row";
+
+    const header = document.createElement("div");
+    header.className = "group-row-header";
 
     const color = document.createElement("span");
     color.className = "group-color";
     color.style.backgroundColor = groupSummary.color;
     color.setAttribute("aria-hidden", "true");
-    row.append(color);
+    header.append(color);
 
     const details = document.createElement("div");
     details.className = "group-details";
@@ -71,7 +98,35 @@
     summary.textContent = `${groupSummary.totalCount} tabs · ${groupSummary.awakeCount} awake · ${groupSummary.sleepingCount} sleeping`;
     details.append(summary);
 
-    row.append(details);
+    header.append(details);
+
+    const memberList = createGroupMemberList(
+      document,
+      groupSummary,
+      renderOptions,
+    );
+
+    const expandAction = document.createElement("button");
+    expandAction.className = "group-expand-action";
+    expandAction.type = "button";
+    expandAction.setAttribute("aria-controls", memberList.id);
+
+    function setExpanded(expanded) {
+      memberList.hidden = !expanded;
+      expandAction.setAttribute("aria-expanded", String(expanded));
+      expandAction.setAttribute(
+        "aria-label",
+        `${expanded ? "Hide" : "Show"} tabs in ${groupSummary.title}`,
+      );
+      expandAction.title = expanded ? "Hide group tabs" : "Show group tabs";
+      expandAction.textContent = expanded ? "⌃" : "⌄";
+    }
+
+    setExpanded(false);
+    expandAction.addEventListener("click", () => {
+      setExpanded(memberList.hidden);
+    });
+    header.append(expandAction);
 
     const action = document.createElement("button");
     action.className = "group-sleep-action";
@@ -88,17 +143,29 @@
         action.textContent = "Sleep group";
       }
     });
-    row.append(action);
+    header.append(action);
+
+    row.append(header, memberList);
 
     return row;
   }
 
-  function renderGroupList(container, groupSummaries, onSleepGroup) {
+  function renderGroupList(
+    container,
+    groupSummaries,
+    onSleepGroup,
+    renderOptions = {},
+  ) {
     container.replaceChildren();
 
     for (const groupSummary of groupSummaries) {
       container.append(
-        createGroupRow(container.ownerDocument, groupSummary, onSleepGroup),
+        createGroupRow(
+          container.ownerDocument,
+          groupSummary,
+          onSleepGroup,
+          renderOptions,
+        ),
       );
     }
   }

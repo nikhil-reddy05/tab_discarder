@@ -32,6 +32,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 360px;
   min-width: 320px;
@@ -50,6 +54,9 @@ input {
 }
 
 .popup-shell {
+  max-height: 600px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px;
 }
 
@@ -224,13 +231,20 @@ h2 {
 }
 
 .group-row {
-  display: flex;
+  display: grid;
   min-width: 0;
-  gap: 9px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 9px;
   background: var(--card);
+}
+
+.group-row-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
 }
 
 .group-color {
@@ -241,8 +255,14 @@ h2 {
 
 .group-details {
   display: grid;
+  flex: 1 1 auto;
   min-width: 0;
   gap: 2px;
+}
+
+.group-member-list {
+  min-width: 0;
+  margin: 0 0 0 13px;
 }
 
 .group-title,
@@ -323,7 +343,8 @@ h2 {
 
 .tab-state-badge,
 .tab-sleep-action,
-.group-sleep-action {
+.group-sleep-action,
+.group-expand-action {
   flex: 0 0 auto;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -344,6 +365,21 @@ h2 {
   background: var(--accent-soft);
   color: var(--accent);
   cursor: pointer;
+}
+
+.group-expand-action {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0;
+  background: var(--card);
+  color: var(--muted-text);
+  cursor: pointer;
+  font-size: 14px;
 }
 
 .tab-sleep-action:disabled,

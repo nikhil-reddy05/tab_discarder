@@ -6,7 +6,7 @@ const { discardTab, discardTabs, resultStatuses } =
   globalThis.tabDiscarderDiscardService;
 const { renderTabList, renderTabListError, renderTabListNoResults } =
   globalThis.tabDiscarderTabList;
-const { getUngroupedTabs, buildGroupSummaries, renderGroupList } =
+const { isGroupedTab, getUngroupedTabs, buildGroupSummaries, renderGroupList } =
   globalThis.tabDiscarderGroupList;
 
 let currentWindowTabs = [];
@@ -88,7 +88,17 @@ async function renderCurrentWindowTabs() {
 function renderWindowTabs(tabs) {
   currentWindowTabs = tabs;
   document.getElementById("tabSummary").textContent = formatTabSummary(tabs);
+  updateSleepThisGroupAction(tabs);
   renderFilteredTabs();
+}
+
+function updateSleepThisGroupAction(tabs) {
+  const action = document.getElementById("sleepThisGroup");
+  const activeTab = tabs.find((tab) => tab.active === true);
+  const isActiveTabGrouped = isGroupedTab(activeTab);
+
+  action.hidden = !isActiveTabGrouped;
+  action.disabled = !isActiveTabGrouped;
 }
 
 async function renderCurrentWindowGroups(tabs) {
@@ -111,7 +121,11 @@ async function renderCurrentWindowGroups(tabs) {
       tabs,
       globalThis.tabDiscarderTabState,
     );
-    renderGroupList(list, groupSummaries, sleepGroup);
+    renderGroupList(list, groupSummaries, sleepGroup, {
+      tabListRenderer: globalThis.tabDiscarderTabList,
+      tabStateModel: globalThis.tabDiscarderTabState,
+      onSleepTab: sleepTab,
+    });
     section.hidden = groupSummaries.length === 0;
   } catch {
     section.hidden = true;
@@ -140,6 +154,30 @@ async function sleepGroup(groupId) {
     return { status: resultStatuses.ERROR };
   } finally {
     await renderCurrentWindowTabs();
+  }
+}
+
+async function sleepThisGroup() {
+  const action = document.getElementById("sleepThisGroup");
+  const status = document.getElementById("bulkActionStatus");
+  action.disabled = true;
+
+  try {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const activeTab = tabs.find((tab) => tab.active === true);
+
+    if (!isGroupedTab(activeTab)) {
+      updateSleepThisGroupAction(tabs);
+      status.textContent = "Active tab is not in a group.";
+      return { status: resultStatuses.SKIPPED };
+    }
+
+    return await sleepGroup(activeTab.groupId);
+  } catch {
+    status.textContent = "Could not find the active tab's group right now.";
+    return { status: resultStatuses.ERROR };
+  } finally {
+    action.disabled = false;
   }
 }
 
@@ -243,6 +281,9 @@ function initializeQuickActions() {
   document
     .getElementById("sleepThisWindow")
     .addEventListener("click", () => sleepThisWindow());
+  document
+    .getElementById("sleepThisGroup")
+    .addEventListener("click", () => sleepThisGroup());
 }
 
 theme();
