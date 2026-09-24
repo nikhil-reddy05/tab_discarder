@@ -8,6 +8,10 @@ const { renderTabList, renderTabListError, renderTabListNoResults } =
   globalThis.tabDiscarderTabList;
 const { isGroupedTab, getUngroupedTabs, buildGroupSummaries, renderGroupList } =
   globalThis.tabDiscarderGroupList;
+const { getRecentlyAwakenedRecords, sessionStorageKey } =
+  globalThis.tabDiscarderRecentlyAwakenedState;
+const { renderRecentlyAwakenedList } =
+  globalThis.tabDiscarderRecentlyAwakenedList;
 
 let currentWindowTabs = [];
 
@@ -85,6 +89,58 @@ async function renderCurrentWindowTabs() {
   }
 }
 
+async function getLiveRecentlyAwakenedEntries() {
+  if (!chrome.storage?.session?.get || !chrome.tabs?.get) {
+    return [];
+  }
+
+  const stored = await chrome.storage.session.get(sessionStorageKey);
+  const records = getRecentlyAwakenedRecords(stored?.[sessionStorageKey]);
+  const liveEntries = await Promise.all(
+    records.map(async (record) => {
+      try {
+        const tab = await chrome.tabs.get(record.tabId);
+
+        // The worker normally removes these records when a tab closes or
+        // sleeps again. Rechecking the live tab keeps the popup safe during
+        // event-delivery races and avoids displaying a stale tab ID.
+        if (
+          tab.windowId !== record.windowId ||
+          tab.discarded === true
+        ) {
+          return null;
+        }
+
+        return { ...record, tab };
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  return liveEntries.filter(Boolean);
+}
+
+async function renderRecentlyAwakenedTabs() {
+  const section = document.getElementById("recentlyAwakenedSection");
+  const list = document.getElementById("recentlyAwakenedList");
+
+  try {
+    const entries = await getLiveRecentlyAwakenedEntries();
+    renderRecentlyAwakenedList(
+      list,
+      entries,
+      globalThis.tabDiscarderTabState,
+      globalThis.tabDiscarderTabList,
+      sleepRecentlyAwakenedTab,
+    );
+    section.hidden = entries.length === 0;
+  } catch {
+    section.hidden = true;
+    list.replaceChildren();
+  }
+}
+
 function renderWindowTabs(tabs) {
   currentWindowTabs = tabs;
   document.getElementById("tabSummary").textContent = formatTabSummary(tabs);
@@ -153,7 +209,7 @@ async function sleepGroup(groupId) {
     status.textContent = "Could not sleep this group right now.";
     return { status: resultStatuses.ERROR };
   } finally {
-    await renderCurrentWindowTabs();
+    await refreshPopup();
   }
 }
 
@@ -213,7 +269,34 @@ async function sleepTab(tabId) {
         : "Could not sleep this tab.";
     return result;
   } finally {
-    await renderCurrentWindowTabs();
+    await refreshPopup();
+  }
+}
+
+async function sleepRecentlyAwakenedTab(tabId) {
+  const status = document.getElementById("bulkActionStatus");
+
+  try {
+    // discardTabs re-fetches the tab and applies the shared safety policy
+    // immediately before discard, so a tab that became active/protected since
+    // this popup rendered is skipped rather than forced to sleep.
+    const result = await discardTabs([tabId]);
+    const tabResult = result.results?.[0];
+
+    if (tabResult?.status === resultStatuses.SUCCESS || result.summary?.discarded) {
+      status.textContent = "Tab slept again.";
+    } else if (tabResult?.status === resultStatuses.SKIPPED || result.summary?.skipped) {
+      status.textContent = "Tab is currently protected and was not slept.";
+    } else {
+      status.textContent = "Could not sleep this tab again.";
+    }
+
+    return tabResult || result;
+  } catch {
+    status.textContent = "Could not sleep this tab again.";
+    return { status: resultStatuses.ERROR };
+  } finally {
+    await refreshPopup();
   }
 }
 
@@ -247,7 +330,7 @@ async function sleepEligibleBackgroundTabsInCurrentWindow() {
     const tabs = await chrome.tabs.query({ currentWindow: true });
     const result = await discardTabs(tabs.map((tab) => tab.id));
     status.textContent = formatBulkDiscardSummary(result.summary);
-    await renderCurrentWindowTabs();
+    await refreshPopup();
     return result;
   } catch {
     status.textContent = "Could not sleep tabs right now.";
@@ -286,7 +369,11 @@ function initializeQuickActions() {
     .addEventListener("click", () => sleepThisGroup());
 }
 
+async function refreshPopup() {
+  await Promise.all([renderCurrentWindowTabs(), renderRecentlyAwakenedTabs()]);
+}
+
 theme();
 initializeSearch();
 initializeQuickActions();
-renderCurrentWindowTabs();
+refreshPopup();

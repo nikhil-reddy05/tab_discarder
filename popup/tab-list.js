@@ -139,6 +139,7 @@
   const tabListRenderer = Object.freeze({
     getTabTitle,
     getTabPresentation,
+    createFavicon,
     renderTabList,
     renderTabListError,
     renderTabListNoResults,

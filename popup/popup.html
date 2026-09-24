@@ -62,7 +62,11 @@
         <div class="section-heading">
           <h2>Recently awakened</h2>
         </div>
-        <div id="recentlyAwakenedList"></div>
+        <ul
+          id="recentlyAwakenedList"
+          class="recent-awakened-list"
+          aria-label="Recently awakened tabs"
+        ></ul>
       </section>
 
       <section id="groupsSection" class="content-section" hidden>
@@ -93,7 +97,9 @@
     <script src="../lib/tab-state.js"></script>
     <script src="../lib/tab-filter.js"></script>
     <script src="../lib/discard-service.js"></script>
+    <script src="../lib/recent-awakened-state.js"></script>
     <script src="tab-list.js"></script>
+    <script src="recent-awakened-list.js"></script>
     <script src="group-list.js"></script>
     <script src="popup.js"></script>
   </body>

@@ -27,6 +27,7 @@ function loadPopup({
   tabs,
   tabGroups = [],
   groupTabs = [],
+  recentlyAwakenedState = { recentlyAwakenedTabs: {} },
   discardTabs,
   discardTab = async () => ({}),
 }) {
@@ -38,6 +39,8 @@ function loadPopup({
       "tabSearch",
       "groupsSection",
       "groupsList",
+      "recentlyAwakenedSection",
+      "recentlyAwakenedList",
       "sleepOtherTabs",
       "sleepThisWindow",
       "sleepThisGroup",
@@ -48,8 +51,10 @@ function loadPopup({
   const groupQueryCalls = [];
   const renderCalls = [];
   const groupRenderCalls = [];
+  const recentlyAwakenedRenderCalls = [];
   let singleTabSleep;
   let groupSleep;
+  let recentlyAwakenedSleep;
 
   const context = {
     chrome: {
@@ -61,11 +66,25 @@ function loadPopup({
           }
           return tabs;
         },
+        async get(tabId) {
+          const tab = tabs.find((candidate) => candidate.id === tabId);
+          if (!tab) {
+            throw new Error("Tab not found");
+          }
+          return tab;
+        },
       },
       tabGroups: {
         async query(queryInfo) {
           groupQueryCalls.push(queryInfo);
           return tabGroups;
+        },
+      },
+      storage: {
+        session: {
+          async get() {
+            return { recentlyAwakenedState };
+          },
         },
       },
     },
@@ -105,6 +124,26 @@ function loadPopup({
       renderTabListError() {},
       renderTabListNoResults() {},
     },
+    tabDiscarderRecentlyAwakenedState: {
+      sessionStorageKey: "recentlyAwakenedState",
+      getRecentlyAwakenedRecords(state) {
+        return Object.values(state?.recentlyAwakenedTabs || {}).sort(
+          (left, right) => right.awakenedAt - left.awakenedAt,
+        );
+      },
+    },
+    tabDiscarderRecentlyAwakenedList: {
+      renderRecentlyAwakenedList(
+        _list,
+        entries,
+        _tabStateModel,
+        _tabListRenderer,
+        onSleepAgain,
+      ) {
+        recentlyAwakenedRenderCalls.push(entries);
+        recentlyAwakenedSleep = onSleepAgain;
+      },
+    },
     tabDiscarderGroupList: {
       isGroupedTab(tab) {
         return Number.isInteger(tab?.groupId) && tab.groupId !== -1;
@@ -138,8 +177,10 @@ function loadPopup({
     groupQueryCalls,
     renderCalls,
     groupRenderCalls,
+    recentlyAwakenedRenderCalls,
     sleepSingleTab: (...args) => singleTabSleep(...args),
     sleepGroup: (...args) => groupSleep(...args),
+    sleepRecentlyAwakenedTab: (...args) => recentlyAwakenedSleep(...args),
   };
 }
 
@@ -292,4 +333,71 @@ test("single-tab Sleep refreshes the current window after the discard attempt", 
   assert.equal(popup.queryCalls.length, 2);
   assert.ok(popup.queryCalls.every((query) => query.currentWindow === true));
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+});
+
+test("Sleep again uses the policy-aware shared batch service and refreshes Recent", async () => {
+  const discardCalls = [];
+  const tabs = [
+    { id: 1, windowId: 7, active: true, discarded: false, groupId: -1 },
+    { id: 2, windowId: 7, active: false, discarded: false, groupId: -1 },
+  ];
+  const popup = loadPopup({
+    tabs,
+    recentlyAwakenedState: {
+      recentlyAwakenedTabs: {
+        1: { tabId: 1, windowId: 7, awakenedAt: 100 },
+        2: { tabId: 2, windowId: 7, awakenedAt: 200 },
+      },
+    },
+    async discardTabs(tabIds) {
+      discardCalls.push(tabIds);
+      tabs[1].discarded = true;
+      return {
+        results: [{ status: "success", tabId: 2 }],
+        summary: { discarded: 1, skipped: 0, failed: 0 },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(popup.elements.get("recentlyAwakenedSection").hidden, false);
+  assert.deepEqual(
+    Array.from(popup.recentlyAwakenedRenderCalls[0], (entry) => entry.tab.id),
+    [2, 1],
+  );
+
+  await popup.sleepRecentlyAwakenedTab(2);
+
+  assert.deepEqual(Array.from(discardCalls, (tabIds) => Array.from(tabIds)), [[2]]);
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept again.");
+  assert.ok(popup.recentlyAwakenedRenderCalls.length > 1);
+  assert.deepEqual(
+    Array.from(
+      popup.recentlyAwakenedRenderCalls.at(-1),
+      (entry) => entry.tab.id,
+    ),
+    [1],
+  );
+});
+
+test("closed recent tabs are removed from the popup list", async () => {
+  const popup = loadPopup({
+    tabs: [{ id: 1, windowId: 7, active: true, groupId: -1 }],
+    recentlyAwakenedState: {
+      recentlyAwakenedTabs: {
+        2: { tabId: 2, windowId: 7, awakenedAt: 200 },
+      },
+    },
+    async discardTabs() {
+      return { summary: { discarded: 0, skipped: 0, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(popup.elements.get("recentlyAwakenedSection").hidden, true);
+  assert.deepEqual(
+    Array.from(popup.recentlyAwakenedRenderCalls[0]),
+    [],
+  );
 });

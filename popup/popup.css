@@ -222,6 +222,14 @@ h2 {
   list-style: none;
 }
 
+.recent-awakened-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .group-list {
   display: grid;
   gap: 7px;
@@ -301,6 +309,33 @@ h2 {
   background: var(--card);
 }
 
+.recent-awakened-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 9px;
+  background: var(--card);
+}
+
+.recent-awakened-details {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.recent-awakened-timing {
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tab-details {
   min-width: 0;
   gap: 8px;
@@ -343,6 +378,7 @@ h2 {
 
 .tab-state-badge,
 .tab-sleep-action,
+.recent-awakened-sleep-action,
 .group-sleep-action,
 .group-expand-action {
   flex: 0 0 auto;
@@ -361,6 +397,7 @@ h2 {
 }
 
 .tab-sleep-action,
+.recent-awakened-sleep-action,
 .group-sleep-action {
   background: var(--accent-soft);
   color: var(--accent);
@@ -383,6 +420,7 @@ h2 {
 }
 
 .tab-sleep-action:disabled,
+.recent-awakened-sleep-action:disabled,
 .group-sleep-action:disabled {
   background: var(--disabled-bg);
   color: var(--disabled-text);
