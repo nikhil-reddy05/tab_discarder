@@ -146,12 +146,15 @@ test("expands and collapses current members with the shared tab-row renderer", (
   assert.equal(renderedMembers[0].stateModel, tabStateModel);
   assert.equal(renderedMembers[0].policy, discardPolicy);
   assert.equal(memberList.hidden, true);
+  assert.equal(memberList.getAttribute("aria-labelledby"), "group-title-10");
   assert.equal(expandAction.getAttribute("aria-expanded"), "false");
+  assert.equal(expandAction.getAttribute("aria-label"), "Show tabs in Research");
   assert.equal(expandAction.textContent, "⌄");
 
   expandAction.getListener("click")();
   assert.equal(memberList.hidden, false);
   assert.equal(expandAction.getAttribute("aria-expanded"), "true");
+  assert.equal(expandAction.getAttribute("aria-label"), "Hide tabs in Research");
   assert.equal(expandAction.textContent, "⌃");
 
   expandAction.getListener("click")();

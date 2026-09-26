@@ -18,6 +18,9 @@ const { renderRecentlyAwakenedList } =
 
 let currentWindowTabs = [];
 let currentDiscardPolicy;
+const LIVE_REFRESH_DELAY_MS = 100;
+let liveRefreshTimer = null;
+let liveUpdatesInitialized = false;
 
 async function getDiscardPolicy() {
   return loadProtectionSettings();
@@ -407,6 +410,49 @@ function initializeOptionsLink() {
   document.getElementById("openOptions").addEventListener("click", openOptions);
 }
 
+function scheduleLiveRefresh() {
+  if (liveRefreshTimer !== null) {
+    return;
+  }
+
+  liveRefreshTimer = globalThis.setTimeout(() => {
+    liveRefreshTimer = null;
+    void refreshPopup();
+  }, LIVE_REFRESH_DELAY_MS);
+}
+
+function addLiveUpdateListener(event, listener) {
+  if (event?.addListener) {
+    event.addListener(listener);
+  }
+}
+
+function initializeLiveUpdates() {
+  if (liveUpdatesInitialized) {
+    return;
+  }
+
+  liveUpdatesInitialized = true;
+  const tabs = chrome.tabs;
+  const tabGroups = chrome.tabGroups;
+
+  addLiveUpdateListener(tabs?.onActivated, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onCreated, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onRemoved, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onReplaced, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onAttached, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onDetached, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onMoved, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onUpdated, scheduleLiveRefresh);
+
+  // Group events cover title/color changes as well as membership changes that
+  // Chrome reports at the group layer.
+  addLiveUpdateListener(tabGroups?.onCreated, scheduleLiveRefresh);
+  addLiveUpdateListener(tabGroups?.onUpdated, scheduleLiveRefresh);
+  addLiveUpdateListener(tabGroups?.onMoved, scheduleLiveRefresh);
+  addLiveUpdateListener(tabGroups?.onRemoved, scheduleLiveRefresh);
+}
+
 async function refreshPopup() {
   await Promise.all([renderCurrentWindowTabs(), renderRecentlyAwakenedTabs()]);
 }
@@ -415,4 +461,5 @@ theme();
 initializeSearch();
 initializeQuickActions();
 initializeOptionsLink();
+initializeLiveUpdates();
 refreshPopup();

@@ -5,7 +5,7 @@
   --muted-text: #667085;
   --card: #ffffff;
   --border: #e6e8ee;
-  --accent: #5662d9;
+  --accent: #5560d5;
   --accent-soft: #eef0ff;
   --disabled-bg: #f1f2f6;
   --disabled-text: #98a2b3;
@@ -121,7 +121,7 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--card);
-  color: var(--disabled-text);
+  color: var(--muted-text);
   font-size: 17px;
 }
 
@@ -281,6 +281,7 @@ h2 {
 }
 
 .group-title {
+  margin: 0;
   color: var(--text);
   font-size: 12px;
   font-weight: 700;
@@ -480,6 +481,7 @@ h2 {
 }
 
 button:focus-visible,
+input:focus-visible,
 input:focus-visible + .theme-toggle {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

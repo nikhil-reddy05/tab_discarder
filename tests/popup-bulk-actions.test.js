@@ -23,6 +23,24 @@ function createElement() {
   };
 }
 
+function createEvent() {
+  const listeners = [];
+
+  return {
+    addListener(listener) {
+      listeners.push(listener);
+    },
+    emit(...args) {
+      for (const listener of listeners) {
+        listener(...args);
+      }
+    },
+    getListenerCount() {
+      return listeners.length;
+    },
+  };
+}
+
 function loadPopup({
   tabs,
   tabGroups = [],
@@ -57,10 +75,28 @@ function loadPopup({
   let singleTabSleep;
   let groupSleep;
   let recentlyAwakenedSleep;
+  const scheduledTimers = [];
+  const tabEvents = {
+    onActivated: createEvent(),
+    onAttached: createEvent(),
+    onCreated: createEvent(),
+    onDetached: createEvent(),
+    onMoved: createEvent(),
+    onRemoved: createEvent(),
+    onReplaced: createEvent(),
+    onUpdated: createEvent(),
+  };
+  const tabGroupEvents = {
+    onCreated: createEvent(),
+    onMoved: createEvent(),
+    onRemoved: createEvent(),
+    onUpdated: createEvent(),
+  };
 
   const context = {
     chrome: {
       tabs: {
+        ...tabEvents,
         async query(queryInfo) {
           queryCalls.push(queryInfo);
           if (Number.isInteger(queryInfo.groupId)) {
@@ -77,6 +113,7 @@ function loadPopup({
         },
       },
       tabGroups: {
+        ...tabGroupEvents,
         async query(queryInfo) {
           groupQueryCalls.push(queryInfo);
           return tabGroups;
@@ -102,6 +139,14 @@ function loadPopup({
       },
     },
     window: { localStorage: { getItem() {}, removeItem() {} } },
+    setTimeout(callback, delay) {
+      const timer = { callback, cancelled: false, delay };
+      scheduledTimers.push(timer);
+      return timer;
+    },
+    clearTimeout(timer) {
+      timer.cancelled = true;
+    },
     tabDiscarderStorage: {
       keys: {
         THEME: "theme",
@@ -191,6 +236,30 @@ function loadPopup({
     renderCalls,
     groupRenderCalls,
     recentlyAwakenedRenderCalls,
+    tabEvents,
+    tabGroupEvents,
+    getScheduledRefreshCount: () =>
+      scheduledTimers.filter((timer) => !timer.cancelled).length,
+    getScheduledRefreshDelay: () =>
+      scheduledTimers.find((timer) => !timer.cancelled)?.delay,
+    async runScheduledRefreshes() {
+      const pendingTimers = scheduledTimers.splice(0);
+      for (const timer of pendingTimers) {
+        if (!timer.cancelled) {
+          timer.callback();
+        }
+      }
+      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+    },
+    getLiveUpdateListenerCounts: () => ({
+      tabs: Object.fromEntries(
+        Object.entries(tabEvents).map(([name, event]) => [name, event.getListenerCount()]),
+      ),
+      tabGroups: Object.fromEntries(
+        Object.entries(tabGroupEvents).map(([name, event]) => [name, event.getListenerCount()]),
+      ),
+    }),
     getOpenOptionsPageCallCount: () => openOptionsPageCallCount,
     sleepSingleTab: (...args) => singleTabSleep(...args),
     sleepGroup: (...args) => groupSleep(...args),
@@ -462,4 +531,96 @@ test("closed recent tabs are removed from the popup list", async () => {
     Array.from(popup.recentlyAwakenedRenderCalls[0]),
     [],
   );
+});
+
+test("batches relevant live tab and group events into one popup refresh", async () => {
+  const tabs = [
+    { id: 1, windowId: 7, groupId: -1, active: true, discarded: false },
+    { id: 2, windowId: 7, groupId: -1, active: false, discarded: true },
+  ];
+  const tabGroups = [];
+  const recentlyAwakenedState = { recentlyAwakenedTabs: {} };
+  const popup = loadPopup({
+    tabs,
+    tabGroups,
+    recentlyAwakenedState,
+    async discardTabs() {
+      return { summary: { discarded: 0, skipped: 0, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const initialQueryCount = popup.queryCalls.length;
+  const initialGroupRenderCount = popup.groupRenderCalls.length;
+  const initialRecentRenderCount = popup.recentlyAwakenedRenderCalls.length;
+
+  assert.deepEqual(popup.getLiveUpdateListenerCounts(), {
+    tabs: {
+      onActivated: 1,
+      onAttached: 1,
+      onCreated: 1,
+      onDetached: 1,
+      onMoved: 1,
+      onRemoved: 1,
+      onReplaced: 1,
+      onUpdated: 1,
+    },
+    tabGroups: {
+      onCreated: 1,
+      onMoved: 1,
+      onRemoved: 1,
+      onUpdated: 1,
+    },
+  });
+
+  tabs[1].discarded = false;
+  tabs[1].groupId = 4;
+  tabGroups.push({ id: 4, title: "Research", color: "blue" });
+  recentlyAwakenedState.recentlyAwakenedTabs[2] = {
+    tabId: 2,
+    windowId: 7,
+    awakenedAt: Date.now(),
+  };
+
+  popup.tabEvents.onActivated.emit({ tabId: 1, windowId: 7 });
+  popup.tabEvents.onUpdated.emit(2, { discarded: false }, tabs[1]);
+  popup.tabEvents.onUpdated.emit(2, { title: "Updated title" }, tabs[1]);
+  popup.tabEvents.onRemoved.emit(3, { windowId: 7, isWindowClosing: false });
+  popup.tabGroupEvents.onUpdated.emit({ id: 4, title: "Research" });
+
+  assert.equal(popup.getScheduledRefreshCount(), 1);
+  assert.equal(popup.getScheduledRefreshDelay(), 100);
+  await popup.runScheduledRefreshes();
+
+  assert.equal(popup.queryCalls.length, initialQueryCount + 1);
+  assert.equal(popup.groupRenderCalls.length, initialGroupRenderCount + 1);
+  assert.equal(
+    popup.recentlyAwakenedRenderCalls.length,
+    initialRecentRenderCount + 1,
+  );
+  assert.equal(popup.groupRenderCalls.at(-1)[0].title, "Research");
+  assert.deepEqual(
+    Array.from(popup.recentlyAwakenedRenderCalls.at(-1), (entry) => entry.tab.id),
+    [2],
+  );
+  assert.equal(popup.renderCalls.at(-1)[0].discarded, false);
+
+  assert.deepEqual(popup.getLiveUpdateListenerCounts(), {
+    tabs: {
+      onActivated: 1,
+      onAttached: 1,
+      onCreated: 1,
+      onDetached: 1,
+      onMoved: 1,
+      onRemoved: 1,
+      onReplaced: 1,
+      onUpdated: 1,
+    },
+    tabGroups: {
+      onCreated: 1,
+      onMoved: 1,
+      onRemoved: 1,
+      onUpdated: 1,
+    },
+  });
 });

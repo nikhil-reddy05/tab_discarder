@@ -54,7 +54,6 @@
     memberList.className = "group-member-list tab-list";
     memberList.id = `group-members-${groupSummary.groupId}`;
     memberList.hidden = true;
-    memberList.setAttribute("aria-label", `Tabs in ${groupSummary.title}`);
 
     if (
       renderOptions.tabListRenderer &&
@@ -89,8 +88,9 @@
     const details = document.createElement("div");
     details.className = "group-details";
 
-    const title = document.createElement("span");
+    const title = document.createElement("h3");
     title.className = "group-title";
+    title.id = `group-title-${groupSummary.groupId}`;
     title.textContent = groupSummary.title;
     details.append(title);
 
@@ -106,6 +106,7 @@
       groupSummary,
       renderOptions,
     );
+    memberList.setAttribute("aria-labelledby", title.id);
 
     const expandAction = document.createElement("button");
     expandAction.className = "group-expand-action";
