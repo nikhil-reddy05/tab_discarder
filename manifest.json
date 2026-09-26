@@ -7,6 +7,16 @@
   "background": {
     "service_worker": "background/service-worker.js"
   },
+  "commands": {
+    "sleep-most-recent-awakened": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Sleep the most recent eligible recently awakened tab"
+    }
+  },
+  "options_page": "options/options.html",
   "action": {
     "default_popup": "popup/popup.html"
   },

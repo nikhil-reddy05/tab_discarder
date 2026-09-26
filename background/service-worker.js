@@ -1,4 +1,10 @@
-importScripts("../lib/recent-awakened-state.js");
+importScripts(
+  "../lib/storage.js",
+  "../lib/tab-state.js",
+  "../lib/discard-service.js",
+  "../lib/recent-awakened-state.js",
+  "../lib/recent-awakened-command.js",
+);
 
 // Track only factual discarded-to-awake transitions. This deliberately makes no
 // inference about why the tab woke and never schedules a re-discard.
@@ -31,4 +37,26 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
   void recentlyAwakenedTracker.handleReplaced(addedTabId, removedTabId);
+});
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command !== "sleep-most-recent-awakened") {
+    return;
+  }
+
+  void globalThis.tabDiscarderStorage
+    .getProtectionSettings()
+    .then((policy) =>
+      globalThis.tabDiscarderRecentlyAwakenedCommand
+        .sleepMostRecentEligibleAwakenedTab({
+          recentlyAwakenedTracker,
+          tabsApi: chrome.tabs,
+          tabStateModel: globalThis.tabDiscarderTabState,
+          policy,
+          discardTabs: globalThis.tabDiscarderDiscardService.discardTabs,
+        }),
+    )
+    .catch(() => {
+      // A command must fail silently and safely when tab state cannot be read.
+    });
 });

@@ -4,6 +4,7 @@
     sleeping: "Sleeping",
     "playing-audio": "Playing audio",
     pinned: "Pinned",
+    "protected-domain": "Protected site",
   });
 
   function getTabTitle(tab) {
@@ -25,15 +26,18 @@
     return "Untitled tab";
   }
 
-  function getTabPresentation(tab, tabStateModel) {
+  function getTabPresentation(tab, tabStateModel, policy) {
     const state = tabStateModel.deriveTabState(tab);
-    const eligibility = tabStateModel.getDiscardEligibility(tab);
+    const eligibility = tabStateModel.getDiscardEligibility(tab, policy);
 
     if (eligibility.eligible) {
       return { kind: "action", label: "Sleep" };
     }
 
-    return { kind: "badge", label: STATE_LABELS[state] || "Awake" };
+    return {
+      kind: "badge",
+      label: STATE_LABELS[eligibility.reason] || STATE_LABELS[state] || "Awake",
+    };
   }
 
   function createFavicon(document, tab) {
@@ -66,7 +70,7 @@
     return favicon;
   }
 
-  function createTabRow(document, tab, tabStateModel, onSleep) {
+  function createTabRow(document, tab, tabStateModel, onSleep, policy) {
     const row = document.createElement("li");
     row.className = "tab-row";
 
@@ -81,7 +85,7 @@
     details.append(title);
     row.append(details);
 
-    const presentation = getTabPresentation(tab, tabStateModel);
+    const presentation = getTabPresentation(tab, tabStateModel, policy);
     if (presentation.kind === "action") {
       const action = document.createElement("button");
       action.className = "tab-sleep-action";
@@ -110,14 +114,14 @@
     return row;
   }
 
-  function renderTabList(container, tabs, tabStateModel, onSleep) {
+  function renderTabList(container, tabs, tabStateModel, onSleep, policy) {
     container.replaceChildren();
     container.classList.remove("empty-section");
     container.removeAttribute("role");
 
     for (const tab of tabs) {
       container.append(
-        createTabRow(container.ownerDocument, tab, tabStateModel, onSleep),
+        createTabRow(container.ownerDocument, tab, tabStateModel, onSleep, policy),
       );
     }
   }

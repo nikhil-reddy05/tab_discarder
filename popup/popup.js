@@ -1,9 +1,12 @@
-const { keys: storageKeys, get: getStoredSetting, set: setStoredSetting } =
-  globalThis.tabDiscarderStorage;
+const {
+  keys: storageKeys,
+  get: getStoredSetting,
+  set: setStoredSetting,
+  getProtectionSettings: loadProtectionSettings,
+} = globalThis.tabDiscarderStorage;
 const { deriveTabState, states: tabStates } = globalThis.tabDiscarderTabState;
 const { filterTabs } = globalThis.tabDiscarderTabFilter;
-const { discardTab, discardTabs, resultStatuses } =
-  globalThis.tabDiscarderDiscardService;
+const { discardTabs, resultStatuses } = globalThis.tabDiscarderDiscardService;
 const { renderTabList, renderTabListError, renderTabListNoResults } =
   globalThis.tabDiscarderTabList;
 const { isGroupedTab, getUngroupedTabs, buildGroupSummaries, renderGroupList } =
@@ -14,6 +17,11 @@ const { renderRecentlyAwakenedList } =
   globalThis.tabDiscarderRecentlyAwakenedList;
 
 let currentWindowTabs = [];
+let currentDiscardPolicy;
+
+async function getDiscardPolicy() {
+  return loadProtectionSettings();
+}
 
 function isTheme(value) {
   return value === "light" || value === "dark";
@@ -81,8 +89,9 @@ async function renderCurrentWindowTabs() {
 
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
-    renderWindowTabs(tabs);
-    await renderCurrentWindowGroups(tabs);
+    const policy = await getDiscardPolicy();
+    renderWindowTabs(tabs, policy);
+    await renderCurrentWindowGroups(tabs, policy);
   } catch {
     summary.textContent = "Tab summary unavailable";
     renderTabListError(tabList);
@@ -133,6 +142,8 @@ async function renderRecentlyAwakenedTabs() {
       globalThis.tabDiscarderTabState,
       globalThis.tabDiscarderTabList,
       sleepRecentlyAwakenedTab,
+      undefined,
+      await getDiscardPolicy(),
     );
     section.hidden = entries.length === 0;
   } catch {
@@ -141,8 +152,9 @@ async function renderRecentlyAwakenedTabs() {
   }
 }
 
-function renderWindowTabs(tabs) {
+function renderWindowTabs(tabs, policy) {
   currentWindowTabs = tabs;
+  currentDiscardPolicy = policy;
   document.getElementById("tabSummary").textContent = formatTabSummary(tabs);
   updateSleepThisGroupAction(tabs);
   renderFilteredTabs();
@@ -157,7 +169,7 @@ function updateSleepThisGroupAction(tabs) {
   action.disabled = !isActiveTabGrouped;
 }
 
-async function renderCurrentWindowGroups(tabs) {
+async function renderCurrentWindowGroups(tabs, policy) {
   const section = document.getElementById("groupsSection");
   const list = document.getElementById("groupsList");
   const windowId = tabs.find((tab) => Number.isInteger(tab.windowId))?.windowId;
@@ -181,6 +193,7 @@ async function renderCurrentWindowGroups(tabs) {
       tabListRenderer: globalThis.tabDiscarderTabList,
       tabStateModel: globalThis.tabDiscarderTabState,
       onSleepTab: sleepTab,
+      discardPolicy: policy,
     });
     section.hidden = groupSummaries.length === 0;
   } catch {
@@ -195,9 +208,11 @@ async function sleepGroup(groupId) {
 
   try {
     const memberTabs = await chrome.tabs.query({ groupId });
+    const policy = await getDiscardPolicy();
     const result = await discardTabs(
       memberTabs.map((tab) => tab.id),
       {
+        policy,
         // Re-check membership after the group query so a tab that moved to a
         // different group before discard is skipped rather than affected.
         shouldDiscardTab: (tab) => tab.groupId === groupId,
@@ -255,6 +270,7 @@ function renderFilteredTabs() {
     filteredTabs,
     globalThis.tabDiscarderTabState,
     sleepTab,
+    currentDiscardPolicy,
   );
 }
 
@@ -262,12 +278,18 @@ async function sleepTab(tabId) {
   const status = document.getElementById("bulkActionStatus");
 
   try {
-    const result = await discardTab(tabId);
-    status.textContent =
-      result.status === resultStatuses.SUCCESS
-        ? "Tab slept."
-        : "Could not sleep this tab.";
-    return result;
+    const result = await discardTabs([tabId], {
+      policy: await getDiscardPolicy(),
+    });
+    const tabResult = result.results?.[0];
+    if (tabResult?.status === resultStatuses.SUCCESS || result.summary?.discarded) {
+      status.textContent = "Tab slept.";
+    } else if (tabResult?.status === resultStatuses.SKIPPED || result.summary?.skipped) {
+      status.textContent = "Tab is currently protected and was not slept.";
+    } else {
+      status.textContent = "Could not sleep this tab.";
+    }
+    return tabResult || result;
   } finally {
     await refreshPopup();
   }
@@ -280,7 +302,9 @@ async function sleepRecentlyAwakenedTab(tabId) {
     // discardTabs re-fetches the tab and applies the shared safety policy
     // immediately before discard, so a tab that became active/protected since
     // this popup rendered is skipped rather than forced to sleep.
-    const result = await discardTabs([tabId]);
+    const result = await discardTabs([tabId], {
+      policy: await getDiscardPolicy(),
+    });
     const tabResult = result.results?.[0];
 
     if (tabResult?.status === resultStatuses.SUCCESS || result.summary?.discarded) {
@@ -328,7 +352,9 @@ async function sleepEligibleBackgroundTabsInCurrentWindow() {
 
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
-    const result = await discardTabs(tabs.map((tab) => tab.id));
+    const result = await discardTabs(tabs.map((tab) => tab.id), {
+      policy: await getDiscardPolicy(),
+    });
     status.textContent = formatBulkDiscardSummary(result.summary);
     await refreshPopup();
     return result;
@@ -369,6 +395,18 @@ function initializeQuickActions() {
     .addEventListener("click", () => sleepThisGroup());
 }
 
+async function openOptions() {
+  try {
+    await chrome.runtime.openOptionsPage();
+  } catch {
+    // The popup remains usable if Chrome cannot open the options page.
+  }
+}
+
+function initializeOptionsLink() {
+  document.getElementById("openOptions").addEventListener("click", openOptions);
+}
+
 async function refreshPopup() {
   await Promise.all([renderCurrentWindowTabs(), renderRecentlyAwakenedTabs()]);
 }
@@ -376,4 +414,5 @@ async function refreshPopup() {
 theme();
 initializeSearch();
 initializeQuickActions();
+initializeOptionsLink();
 refreshPopup();

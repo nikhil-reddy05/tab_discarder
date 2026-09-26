@@ -66,6 +66,7 @@
         groupSummary.memberTabs,
         renderOptions.tabStateModel,
         renderOptions.onSleepTab,
+        renderOptions.discardPolicy,
       );
     }
 

@@ -113,9 +113,10 @@ test("expands and collapses current members with the shared tab-row renderer", (
   container.ownerDocument = document;
   const renderedMembers = [];
   const memberTabs = [{ id: 1, groupId: 10 }, { id: 2, groupId: 10 }];
+  const discardPolicy = { protectPinned: false, protectAudible: true };
   const tabListRenderer = {
-    renderTabList(list, tabs, stateModel, onSleep) {
-      renderedMembers.push({ list, tabs, stateModel, onSleep });
+    renderTabList(list, tabs, stateModel, onSleep, policy) {
+      renderedMembers.push({ list, tabs, stateModel, onSleep, policy });
     },
   };
 
@@ -133,7 +134,7 @@ test("expands and collapses current members with the shared tab-row renderer", (
       },
     ],
     () => {},
-    { tabListRenderer, tabStateModel, onSleepTab: () => {} },
+    { tabListRenderer, tabStateModel, onSleepTab: () => {}, discardPolicy },
   );
 
   const row = container.children[0];
@@ -143,6 +144,7 @@ test("expands and collapses current members with the shared tab-row renderer", (
 
   assert.deepEqual(renderedMembers[0].tabs, memberTabs);
   assert.equal(renderedMembers[0].stateModel, tabStateModel);
+  assert.equal(renderedMembers[0].policy, discardPolicy);
   assert.equal(memberList.hidden, true);
   assert.equal(expandAction.getAttribute("aria-expanded"), "false");
   assert.equal(expandAction.textContent, "⌄");

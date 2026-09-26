@@ -54,6 +54,28 @@ test("allows a normal awake background tab and supports future policy settings",
   );
 });
 
+test("protects exact protected domains and their subdomains with no partial matches", () => {
+  const policy = { protectedDomains: ["Example.COM."] };
+
+  assert.deepEqual(
+    getDiscardEligibility({ url: "https://docs.example.com/guide" }, policy),
+    {
+      eligible: false,
+      state: "protected-domain",
+      reason: "protected-domain",
+      protectedDomain: "example.com",
+    },
+  );
+  assert.equal(
+    getDiscardEligibility({ url: "https://notexample.com" }, policy).eligible,
+    true,
+  );
+  assert.equal(
+    getDiscardEligibility({ url: "chrome://settings" }, policy).eligible,
+    true,
+  );
+});
+
 test("renders titles with useful fallbacks", () => {
   assert.equal(getTabTitle({ title: "  Project dashboard  " }), "Project dashboard");
   assert.equal(getTabTitle({ title: "", url: "https://example.com/path" }), "example.com");
@@ -84,4 +106,20 @@ test("maps centralized state and eligibility to the tab-row presentation", () =>
     kind: "action",
     label: "Sleep",
   });
+  assert.deepEqual(
+    getTabPresentation(
+      { pinned: true },
+      tabStateModel,
+      { protectPinned: false, protectAudible: true },
+    ),
+    { kind: "action", label: "Sleep" },
+  );
+  assert.deepEqual(
+    getTabPresentation(
+      { url: "https://example.com" },
+      tabStateModel,
+      { protectedDomains: ["example.com"] },
+    ),
+    { kind: "badge", label: "Protected site" },
+  );
 });

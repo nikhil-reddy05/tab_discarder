@@ -28,8 +28,8 @@ function loadPopup({
   tabGroups = [],
   groupTabs = [],
   recentlyAwakenedState = { recentlyAwakenedTabs: {} },
+  protectionSettings = { protectPinned: true, protectAudible: true },
   discardTabs,
-  discardTab = async () => ({}),
 }) {
   const elements = new Map(
     [
@@ -44,6 +44,7 @@ function loadPopup({
       "sleepOtherTabs",
       "sleepThisWindow",
       "sleepThisGroup",
+      "openOptions",
       "bulkActionStatus",
     ].map((id) => [id, createElement()]),
   );
@@ -52,6 +53,7 @@ function loadPopup({
   const renderCalls = [];
   const groupRenderCalls = [];
   const recentlyAwakenedRenderCalls = [];
+  let openOptionsPageCallCount = 0;
   let singleTabSleep;
   let groupSleep;
   let recentlyAwakenedSleep;
@@ -80,6 +82,11 @@ function loadPopup({
           return tabGroups;
         },
       },
+      runtime: {
+        async openOptionsPage() {
+          openOptionsPageCallCount += 1;
+        },
+      },
       storage: {
         session: {
           async get() {
@@ -96,12 +103,19 @@ function loadPopup({
     },
     window: { localStorage: { getItem() {}, removeItem() {} } },
     tabDiscarderStorage: {
-      keys: { THEME: "theme" },
+      keys: {
+        THEME: "theme",
+        PROTECT_PINNED: "protectPinned",
+        PROTECT_AUDIBLE: "protectAudible",
+      },
       async get() {
         return "light";
       },
       async set() {
         return true;
+      },
+      async getProtectionSettings() {
+        return protectionSettings;
       },
     },
     tabDiscarderTabState: {
@@ -112,7 +126,6 @@ function loadPopup({
     },
     tabDiscarderTabFilter: { filterTabs: (currentTabs) => currentTabs },
     tabDiscarderDiscardService: {
-      discardTab,
       discardTabs,
       resultStatuses: { SUCCESS: "success", SKIPPED: "skipped", ERROR: "error" },
     },
@@ -178,11 +191,25 @@ function loadPopup({
     renderCalls,
     groupRenderCalls,
     recentlyAwakenedRenderCalls,
+    getOpenOptionsPageCallCount: () => openOptionsPageCallCount,
     sleepSingleTab: (...args) => singleTabSleep(...args),
     sleepGroup: (...args) => groupSleep(...args),
     sleepRecentlyAwakenedTab: (...args) => recentlyAwakenedSleep(...args),
   };
 }
+
+test("opens the extension options page from the popup settings control", async () => {
+  const popup = loadPopup({
+    tabs: [],
+    async discardTabs() {
+      return { summary: { discarded: 0, skipped: 0, failed: 0 } };
+    },
+  });
+
+  await popup.elements.get("openOptions").getListener("click")();
+
+  assert.equal(popup.getOpenOptionsPageCallCount(), 1);
+});
 
 test("loads current-window group metadata and joins it to current tabs", async () => {
   const popup = loadPopup({
@@ -312,27 +339,62 @@ test("Sleep this window uses the shared current-window batch action", async () =
   assert.ok(popup.renderCalls.length > 0);
 });
 
-test("single-tab Sleep refreshes the current window after the discard attempt", async () => {
+test("single-tab Sleep uses the current protection policy and refreshes the window", async () => {
   const tabs = [{ id: 2, active: false, discarded: false }];
   const discardCalls = [];
   const popup = loadPopup({
     tabs,
-    async discardTab(tabId) {
-      discardCalls.push(tabId);
-      return { status: "success", tabId, tab: { ...tabs[0], discarded: true } };
-    },
-    async discardTabs() {
-      return { summary: { discarded: 0, skipped: 0, failed: 0 } };
+    protectionSettings: { protectPinned: false, protectAudible: true },
+    async discardTabs(tabIds, options) {
+      discardCalls.push({ tabIds, options });
+      return {
+        results: [{ status: "success", tabId: 2 }],
+        summary: { discarded: 1, skipped: 0, failed: 0 },
+      };
     },
   });
 
   await new Promise((resolve) => setImmediate(resolve));
   await popup.sleepSingleTab(2);
 
-  assert.deepEqual(discardCalls, [2]);
+  assert.deepEqual(Array.from(discardCalls[0].tabIds), [2]);
+  assert.deepEqual(discardCalls[0].options.policy, {
+    protectPinned: false,
+    protectAudible: true,
+  });
   assert.equal(popup.queryCalls.length, 2);
   assert.ok(popup.queryCalls.every((query) => query.currentWindow === true));
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+});
+
+test("window and group sleep actions use the latest stored protection policy", async () => {
+  const discardCalls = [];
+  const popup = loadPopup({
+    tabs: [
+      { id: 1, windowId: 7, groupId: 3, active: true },
+      { id: 2, windowId: 7, groupId: 3, pinned: true },
+    ],
+    tabGroups: [{ id: 3, title: "Research", color: "blue" }],
+    groupTabs: [{ id: 2, windowId: 7, groupId: 3, pinned: true }],
+    protectionSettings: { protectPinned: false, protectAudible: true },
+    async discardTabs(tabIds, options) {
+      discardCalls.push({ tabIds, options });
+      return { summary: { discarded: 1, skipped: 0, failed: 0 } };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  await popup.sleepGroup(3);
+  await popup.elements.get("sleepThisWindow").getListener("click")();
+
+  assert.deepEqual(discardCalls[0].options.policy, {
+    protectPinned: false,
+    protectAudible: true,
+  });
+  assert.deepEqual(discardCalls[1].options.policy, {
+    protectPinned: false,
+    protectAudible: true,
+  });
 });
 
 test("Sleep again uses the policy-aware shared batch service and refreshes Recent", async () => {

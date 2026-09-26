@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tab Discarder settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="settings-shell">
+      <h1>Tab Discarder settings</h1>
+      <p class="intro">Choose which tabs stay protected when you sleep tabs.</p>
+
+      <section aria-labelledby="protectionTitle">
+        <h2 id="protectionTitle">Protection defaults</h2>
+        <label class="setting-row" for="protectPinned">
+          <span>
+            <strong>Protect pinned tabs</strong>
+            <small>Pinned tabs are skipped by sleep actions.</small>
+          </span>
+          <input id="protectPinned" type="checkbox" />
+        </label>
+        <label class="setting-row" for="protectAudible">
+          <span>
+            <strong>Protect audible tabs</strong>
+            <small>Tabs playing audio are skipped by sleep actions.</small>
+          </span>
+          <input id="protectAudible" type="checkbox" />
+        </label>
+      </section>
+
+      <section aria-labelledby="siteProtectionTitle">
+        <h2 id="siteProtectionTitle">Protected sites</h2>
+        <p class="section-intro">
+          Enter a domain such as <code>example.com</code>. It protects that
+          domain and all of its subdomains. Wildcards, paths, ports, and URLs
+          are not supported.
+        </p>
+        <form id="protectedDomainForm" class="domain-form">
+          <label for="protectedDomainInput">Domain to protect</label>
+          <div class="domain-form-controls">
+            <input
+              id="protectedDomainInput"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              placeholder="example.com"
+            />
+            <button type="submit">Add site</button>
+          </div>
+        </form>
+        <ul
+          id="protectedDomainsList"
+          class="protected-domains-list"
+          aria-label="Protected sites"
+        ></ul>
+      </section>
+
+      <p id="settingsStatus" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="../lib/storage.js"></script>
+    <script src="../lib/tab-state.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

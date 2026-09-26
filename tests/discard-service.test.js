@@ -211,3 +211,63 @@ test("skips a tab that leaves a selected group before its discard is attempted",
   });
   assert.equal(result.results[4].reason, "no-longer-targeted");
 });
+
+test("applies a supplied protection setting without changing other protections", async () => {
+  const tabs = new Map([
+    [1, { id: 1, pinned: true }],
+    [2, { id: 2, audible: true }],
+    [3, { id: 3 }],
+  ]);
+  const discardCalls = [];
+  const tabsApi = {
+    async get(tabId) {
+      return tabs.get(tabId);
+    },
+    async discard(tabId) {
+      discardCalls.push(tabId);
+      const discardedTab = { ...tabs.get(tabId), discarded: true };
+      tabs.set(tabId, discardedTab);
+      return discardedTab;
+    },
+  };
+
+  const result = await discardTabs([1, 2, 3], {
+    tabsApi,
+    tabStateModel,
+    policy: { protectPinned: false, protectAudible: true },
+  });
+
+  assert.deepEqual(discardCalls, [1, 3]);
+  assert.deepEqual(result.summary, { discarded: 2, skipped: 1, failed: 0 });
+});
+
+test("skips protected domains in shared single and bulk discard policy", async () => {
+  const tabs = new Map([
+    [1, { id: 1, url: "https://example.com" }],
+    [2, { id: 2, url: "https://docs.example.com" }],
+    [3, { id: 3, url: "https://other.example" }],
+  ]);
+  const discardCalls = [];
+  const tabsApi = {
+    async get(tabId) {
+      return tabs.get(tabId);
+    },
+    async discard(tabId) {
+      discardCalls.push(tabId);
+      const discardedTab = { ...tabs.get(tabId), discarded: true };
+      tabs.set(tabId, discardedTab);
+      return discardedTab;
+    },
+  };
+
+  const result = await discardTabs([1, 2, 3], {
+    tabsApi,
+    tabStateModel,
+    policy: { protectedDomains: ["example.com"] },
+  });
+
+  assert.deepEqual(discardCalls, [3]);
+  assert.deepEqual(result.summary, { discarded: 1, skipped: 2, failed: 0 });
+  assert.equal(result.results[0].reason, "protected-domain");
+  assert.equal(result.results[1].reason, "protected-domain");
+});

@@ -4,6 +4,7 @@
     sleeping: "Sleeping",
     "playing-audio": "Playing audio",
     pinned: "Pinned",
+    "protected-domain": "Protected site",
   });
 
   function formatRelativeTime(awakenedAt, now = Date.now()) {
@@ -26,15 +27,15 @@
     return `${Math.floor(elapsedHours / 24)}d ago`;
   }
 
-  function getRecentTabPresentation(tab, tabStateModel) {
-    const eligibility = tabStateModel.getDiscardEligibility(tab);
+  function getRecentTabPresentation(tab, tabStateModel, policy) {
+    const eligibility = tabStateModel.getDiscardEligibility(tab, policy);
     if (eligibility.eligible) {
       return { kind: "action", label: "Sleep again" };
     }
 
     return {
       kind: "badge",
-      label: STATE_LABELS[eligibility.state] || "Awake",
+      label: STATE_LABELS[eligibility.reason] || STATE_LABELS[eligibility.state] || "Awake",
     };
   }
 
@@ -45,6 +46,7 @@
     tabListRenderer,
     onSleepAgain,
     now,
+    policy,
   ) {
     const row = document.createElement("li");
     row.className = "recent-awakened-row";
@@ -70,7 +72,7 @@
     details.append(text);
     row.append(details);
 
-    const presentation = getRecentTabPresentation(entry.tab, tabStateModel);
+    const presentation = getRecentTabPresentation(entry.tab, tabStateModel, policy);
     if (presentation.kind === "action") {
       const action = document.createElement("button");
       action.className = "recent-awakened-sleep-action";
@@ -106,6 +108,7 @@
     tabListRenderer,
     onSleepAgain,
     now,
+    policy,
   ) {
     container.replaceChildren();
 
@@ -118,6 +121,7 @@
           tabListRenderer,
           onSleepAgain,
           now,
+          policy,
         ),
       );
     }

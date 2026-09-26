@@ -86,6 +86,25 @@ test("reflects protected recent tabs instead of offering Sleep again", () => {
   });
 });
 
+test("labels a protected domain in Recently awakened", () => {
+  const domainPolicyModel = {
+    getDiscardEligibility() {
+      return {
+        eligible: false,
+        state: "protected-domain",
+        reason: "protected-domain",
+      };
+    },
+  };
+
+  assert.deepEqual(
+    getRecentTabPresentation({ url: "https://example.com" }, domainPolicyModel, {
+      protectedDomains: ["example.com"],
+    }),
+    { kind: "badge", label: "Protected site" },
+  );
+});
+
 test("renders live tab details safely and sends Sleep again through its callback", async () => {
   const document = createFakeDocument();
   const container = createFakeElement();

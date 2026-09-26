@@ -1,0 +1,161 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+function createElement() {
+  const listeners = new Map();
+
+  return {
+    attributes: new Map(),
+    children: [],
+    checked: false,
+    disabled: false,
+    textContent: "",
+    type: "",
+    value: "",
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    append(...children) {
+      this.children.push(...children);
+    },
+    getListener(type) {
+      return listeners.get(type);
+    },
+    replaceChildren(...children) {
+      this.children = children;
+    },
+    setAttribute(name, value) {
+      this.attributes.set(name, String(value));
+    },
+  };
+}
+
+function loadOptions({ settings, saveResult = true } = {}) {
+  const elements = new Map(
+    [
+      "protectPinned",
+      "protectAudible",
+      "protectedDomainForm",
+      "protectedDomainInput",
+      "protectedDomainsList",
+      "settingsStatus",
+    ].map((id) => [
+      id,
+      createElement(),
+    ]),
+  );
+  const savedSettings = [];
+  const context = {
+    document: {
+      createElement() {
+        return createElement();
+      },
+      getElementById(id) {
+        return elements.get(id);
+      },
+    },
+    tabDiscarderTabState: {
+      normalizeProtectedDomain(value) {
+        const domain = String(value || "").trim().toLowerCase().replace(/\.+$/, "");
+        return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/.test(
+          domain,
+        )
+          ? domain
+          : null;
+      },
+    },
+    tabDiscarderStorage: {
+      keys: {
+        PROTECT_PINNED: "protectPinned",
+        PROTECT_AUDIBLE: "protectAudible",
+        PROTECTED_DOMAINS: "protectedDomains",
+      },
+      async getProtectionSettings() {
+        return settings;
+      },
+      async set(key, value) {
+        savedSettings.push([key, value]);
+        return saveResult;
+      },
+    },
+  };
+  context.globalThis = context;
+  vm.runInNewContext(
+    fs.readFileSync(path.join(__dirname, "../options/options.js"), "utf8"),
+    context,
+  );
+
+  return { elements, savedSettings };
+}
+
+test("registers the focused options page in the manifest", () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "../manifest.json"), "utf8"),
+  );
+
+  assert.equal(manifest.options_page, "options/options.html");
+});
+
+test("loads saved protection choices and persists only the changed setting", async () => {
+  const options = loadOptions({
+    settings: { protectPinned: false, protectAudible: true },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const pinnedInput = options.elements.get("protectPinned");
+  const audibleInput = options.elements.get("protectAudible");
+
+  assert.equal(pinnedInput.checked, false);
+  assert.equal(audibleInput.checked, true);
+
+  pinnedInput.checked = true;
+  await pinnedInput.getListener("change")();
+
+  assert.deepEqual(options.savedSettings, [["protectPinned", true]]);
+  assert.equal(options.elements.get("settingsStatus").textContent, "Settings saved.");
+});
+
+test("adds, normalizes, and removes protected domains", async () => {
+  const options = loadOptions({
+    settings: {
+      protectPinned: true,
+      protectAudible: true,
+      protectedDomains: ["Example.com.", "docs.example.com"],
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const list = options.elements.get("protectedDomainsList");
+  assert.equal(list.children.length, 2);
+  assert.equal(list.children[0].children[0].textContent, "docs.example.com");
+  assert.equal(list.children[1].children[0].textContent, "example.com");
+
+  const input = options.elements.get("protectedDomainInput");
+  input.value = "Work.Example.com";
+  options.elements.get("protectedDomainForm").getListener("submit")({
+    preventDefault() {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(Array.from(options.savedSettings.at(-1), (value) =>
+    Array.isArray(value) ? Array.from(value) : value,
+  ), [
+    "protectedDomains",
+    ["docs.example.com", "example.com", "work.example.com"],
+  ]);
+  assert.equal(list.children.length, 3);
+  assert.equal(options.elements.get("settingsStatus").textContent, "Protected site added.");
+
+  await list.children[0].children[1].getListener("click")();
+  assert.deepEqual(Array.from(options.savedSettings.at(-1), (value) =>
+    Array.isArray(value) ? Array.from(value) : value,
+  ), [
+    "protectedDomains",
+    ["example.com", "work.example.com"],
+  ]);
+  assert.equal(list.children.length, 2);
+  assert.equal(options.elements.get("settingsStatus").textContent, "Protected site removed.");
+});
