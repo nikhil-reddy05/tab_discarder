@@ -262,10 +262,10 @@ h2 {
 .group-row {
   display: grid;
   min-width: 0;
-  gap: 8px;
+  gap: 7px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 9px;
+  border-radius: 12px;
+  padding: 8px 6px;
   background: var(--card);
 }
 
@@ -282,13 +282,50 @@ h2 {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 9px;
+  gap: 12px;
 }
 
 .group-color {
-  width: 4px;
-  flex: 0 0 4px;
-  border-radius: 999px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 8px;
+}
+
+.group-color--grey {
+  background: #5f6368;
+}
+
+.group-color--blue {
+  background: #1a73e8;
+}
+
+.group-color--red {
+  background: #d93025;
+}
+
+.group-color--yellow {
+  background: #f9ab00;
+}
+
+.group-color--green {
+  background: #188038;
+}
+
+.group-color--pink {
+  background: #d01884;
+}
+
+.group-color--purple {
+  background: #a142f4;
+}
+
+.group-color--cyan {
+  background: #007b83;
+}
+
+.group-color--orange {
+  background: #e8710a;
 }
 
 .group-details {
@@ -300,7 +337,14 @@ h2 {
 
 .group-member-list {
   min-width: 0;
-  margin: 0 0 0 13px;
+  margin: 0;
+}
+
+.group-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .group-title,
@@ -315,13 +359,13 @@ h2 {
   color: var(--text);
   font-size: 12px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.2;
 }
 
 .group-summary {
   color: var(--muted-text);
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 1.2;
 }
 
 .tab-row,

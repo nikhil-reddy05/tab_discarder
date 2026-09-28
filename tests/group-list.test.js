@@ -7,6 +7,7 @@ const {
   getUngroupedTabs,
   getGroupTitle,
   getGroupColor,
+  getGroupColorClass,
   buildGroupSummaries,
 } = require("../popup/group-list.js");
 
@@ -77,6 +78,7 @@ test("builds one factual summary per live Chrome group", () => {
       groupId: 10,
       title: "Research",
       color: "#1a73e8",
+      colorClass: "group-color--blue",
       memberTabs: [
         { id: 1, groupId: 10 },
         { id: 2, groupId: 10, discarded: true },
@@ -89,6 +91,7 @@ test("builds one factual summary per live Chrome group", () => {
       groupId: 11,
       title: "Untitled group",
       color: "#a142f4",
+      colorClass: "group-color--purple",
       memberTabs: [{ id: 3, groupId: 11, discarded: true }],
       totalCount: 1,
       awakeCount: 0,
@@ -104,6 +107,27 @@ test("keeps only ungrouped tabs in This window and safely falls back for metadat
   );
   assert.equal(getGroupTitle({ title: "  " }), "Untitled group");
   assert.equal(getGroupColor({ color: "unknown" }), "#5f6368");
+  assert.equal(getGroupColorClass({ color: "orange" }), "group-color--orange");
+  assert.equal(getGroupColorClass({ color: "unknown" }), "group-color--grey");
+});
+
+test("maps every Chrome group color to a stable chip class", () => {
+  const expectedColors = {
+    grey: "#5f6368",
+    blue: "#1a73e8",
+    red: "#d93025",
+    yellow: "#f9ab00",
+    green: "#188038",
+    pink: "#d01884",
+    purple: "#a142f4",
+    cyan: "#007b83",
+    orange: "#e8710a",
+  };
+
+  for (const [color, value] of Object.entries(expectedColors)) {
+    assert.equal(getGroupColor({ color }), value);
+    assert.equal(getGroupColorClass({ color }), `group-color--${color}`);
+  }
 });
 
 test("expands and collapses current members with the shared tab-row renderer", () => {
@@ -127,6 +151,7 @@ test("expands and collapses current members with the shared tab-row renderer", (
         groupId: 10,
         title: "Research",
         color: "#1a73e8",
+        colorClass: "group-color--blue",
         memberTabs,
         totalCount: 2,
         awakeCount: 2,
@@ -139,13 +164,17 @@ test("expands and collapses current members with the shared tab-row renderer", (
 
   const row = container.children[0];
   const header = row.children[0];
-  const expandAction = header.children[2];
+  const color = header.children[0];
+  const actions = header.children[2];
+  const expandAction = actions.children[0];
   const memberList = row.children[1];
 
   assert.deepEqual(renderedMembers[0].tabs, memberTabs);
   assert.equal(renderedMembers[0].stateModel, tabStateModel);
   assert.equal(renderedMembers[0].policy, discardPolicy);
   assert.equal(memberList.hidden, true);
+  assert.equal(color.className, "group-color group-color--blue");
+  assert.equal(actions.className, "group-actions");
   assert.equal(memberList.getAttribute("aria-labelledby"), "group-title-10");
   assert.equal(expandAction.getAttribute("aria-expanded"), "false");
   assert.equal(expandAction.getAttribute("aria-label"), "Show tabs in Research");

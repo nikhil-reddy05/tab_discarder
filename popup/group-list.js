@@ -11,6 +11,17 @@
     cyan: "#007b83",
     orange: "#e8710a",
   });
+  const GROUP_COLOR_CLASSES = Object.freeze({
+    grey: "group-color--grey",
+    blue: "group-color--blue",
+    red: "group-color--red",
+    yellow: "group-color--yellow",
+    green: "group-color--green",
+    pink: "group-color--pink",
+    purple: "group-color--purple",
+    cyan: "group-color--cyan",
+    orange: "group-color--orange",
+  });
 
   function isGroupedTab(tab) {
     return Number.isInteger(tab?.groupId) && tab.groupId !== UNGROUPED_TAB_ID;
@@ -30,6 +41,10 @@
     return GROUP_COLORS[group?.color] || GROUP_COLORS.grey;
   }
 
+  function getGroupColorClass(group) {
+    return GROUP_COLOR_CLASSES[group?.color] || GROUP_COLOR_CLASSES.grey;
+  }
+
   function buildGroupSummaries(groups, tabs, tabStateModel) {
     return groups.map((group) => {
       const memberTabs = tabs.filter((tab) => tab.groupId === group.id);
@@ -41,6 +56,7 @@
         groupId: group.id,
         title: getGroupTitle(group),
         color: getGroupColor(group),
+        colorClass: getGroupColorClass(group),
         memberTabs,
         totalCount: memberTabs.length,
         awakeCount: memberTabs.length - sleepingCount,
@@ -80,8 +96,9 @@
     header.className = "group-row-header";
 
     const color = document.createElement("span");
-    color.className = "group-color";
-    color.style.backgroundColor = groupSummary.color;
+    color.className = `group-color ${
+      groupSummary.colorClass || GROUP_COLOR_CLASSES.grey
+    }`;
     color.setAttribute("aria-hidden", "true");
     header.append(color);
 
@@ -128,8 +145,6 @@
     expandAction.addEventListener("click", () => {
       setExpanded(memberList.hidden);
     });
-    header.append(expandAction);
-
     const action = document.createElement("button");
     action.className = "group-sleep-action";
     action.type = "button";
@@ -145,7 +160,10 @@
         action.textContent = "Sleep group";
       }
     });
-    header.append(action);
+    const actions = document.createElement("div");
+    actions.className = "group-actions";
+    actions.append(expandAction, action);
+    header.append(actions);
 
     row.append(header, memberList);
 
@@ -177,6 +195,7 @@
     getUngroupedTabs,
     getGroupTitle,
     getGroupColor,
+    getGroupColorClass,
     buildGroupSummaries,
     renderGroupList,
   });
