@@ -11,6 +11,10 @@ const popupCss = fs.readFileSync(
   path.join(__dirname, "../popup/popup.css"),
   "utf8",
 );
+const optionsHtml = fs.readFileSync(
+  path.join(__dirname, "../options/options.html"),
+  "utf8",
+);
 
 test("uses native, named controls for popup keyboard navigation", () => {
   assert.match(popupHtml, /<html lang="en">/);
@@ -26,15 +30,16 @@ test("uses native, named controls for popup keyboard navigation", () => {
     popupHtml,
     /<input\s+id="tabSearch"[\s\S]*?type="search"[\s\S]*?aria-describedby="searchHint"/,
   );
+  assert.doesNotMatch(popupHtml, /toggleTheme|theme-control/);
   assert.match(
-    popupHtml,
-    /<label class="theme-control" for="toggleTheme">[\s\S]*?Dark theme[\s\S]*?<input type="checkbox" id="toggleTheme"/,
+    optionsHtml,
+    /<select id="themePreference" class="theme-select">[\s\S]*?<option value="system">System<\/option>[\s\S]*?<option value="light">Light<\/option>[\s\S]*?<option value="dark">Dark<\/option>/,
   );
 });
 
 test("provides a visible focus indicator for buttons and inputs", () => {
   assert.match(
     popupCss,
-    /button:focus-visible,[\s\S]*?input:focus-visible,[\s\S]*?input:focus-visible \+ \.theme-toggle\s*\{[\s\S]*?outline: 2px solid var\(--focus\);/,
+    /button:focus-visible,[\s\S]*?input:focus-visible,[\s\S]*?select:focus-visible\s*\{[\s\S]*?outline: 2px solid var\(--focus\);/,
   );
 });

@@ -8,6 +8,10 @@ const storageScript = fs.readFileSync(
   path.join(__dirname, "../lib/storage.js"),
   "utf8",
 );
+const themeScript = fs.readFileSync(
+  path.join(__dirname, "../lib/theme.js"),
+  "utf8",
+);
 const tabStateScript = fs.readFileSync(
   path.join(__dirname, "../lib/tab-state.js"),
   "utf8",
@@ -32,7 +36,7 @@ function createElement() {
 function createSharedPageContext() {
   const elements = new Map(
     [
-      "toggleTheme",
+      "themePreference",
       "tabSummary",
       "tabList",
       "tabSearch",
@@ -87,12 +91,17 @@ function createSharedPageContext() {
       },
     },
     document: {
-      documentElement: { setAttribute() {} },
+      documentElement: { dataset: {}, setAttribute() {} },
       getElementById(id) {
         return elements.get(id);
       },
     },
-    window: { localStorage: { getItem() { return null; }, removeItem() {} } },
+    window: {
+      localStorage: { getItem() { return null; }, removeItem() {} },
+      matchMedia() {
+        return { matches: false, addEventListener() {}, removeEventListener() {} };
+      },
+    },
     tabDiscarderTabState: {
       states: { SLEEPING: "sleeping" },
       deriveTabState() { return "awake"; },
@@ -134,6 +143,7 @@ async function loadSharedPageScripts(page) {
   const sharedPage = createSharedPageContext();
 
   vm.runInContext(storageScript, sharedPage.context, { filename: "lib/storage.js" });
+  vm.runInContext(themeScript, sharedPage.context, { filename: "lib/theme.js" });
   if (page === "options") {
     vm.runInContext(tabStateScript, sharedPage.context, {
       filename: "lib/tab-state.js",

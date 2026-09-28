@@ -51,7 +51,6 @@ function loadPopup({
 }) {
   const elements = new Map(
     [
-      "toggleTheme",
       "tabSummary",
       "tabList",
       "tabSearch",
@@ -133,12 +132,12 @@ function loadPopup({
       },
     },
     document: {
-      documentElement: { setAttribute() {} },
+      documentElement: { dataset: {}, setAttribute() {} },
       getElementById(id) {
         return elements.get(id);
       },
     },
-    window: { localStorage: { getItem() {}, removeItem() {} } },
+    window: {},
     setTimeout(callback, delay) {
       const timer = { callback, cancelled: false, delay };
       scheduledTimers.push(timer);
@@ -149,7 +148,6 @@ function loadPopup({
     },
     tabDiscarderStorage: {
       keys: {
-        THEME: "theme",
         PROTECT_PINNED: "protectPinned",
         PROTECT_AUDIBLE: "protectAudible",
       },
@@ -161,6 +159,11 @@ function loadPopup({
       },
       async getProtectionSettings() {
         return protectionSettings;
+      },
+    },
+    tabDiscarderTheme: {
+      async initializeTheme() {
+        return { preference: "system", async setPreference() { return true; } };
       },
     },
     tabDiscarderTabState: {

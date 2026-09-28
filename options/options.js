@@ -4,6 +4,7 @@ const {
   set: setStoredSetting,
 } = globalThis.tabDiscarderStorage;
 const { normalizeProtectedDomain } = globalThis.tabDiscarderTabState;
+const themeManager = globalThis.tabDiscarderTheme;
 
 let protectedDomains = [];
 
@@ -15,6 +16,18 @@ async function saveProtectionSetting(input, storageKey) {
   input.disabled = true;
   const saved = await setStoredSetting(storageKey, input.checked);
   input.disabled = false;
+  setStatus(saved ? "Settings saved." : "Could not save settings. Please try again.");
+}
+
+async function saveThemePreference(input, themeController) {
+  input.disabled = true;
+  const saved = await themeController.setPreference(input.value);
+  input.disabled = false;
+
+  if (!saved) {
+    input.value = themeController.preference;
+  }
+
   setStatus(saved ? "Settings saved." : "Could not save settings. Please try again.");
 }
 
@@ -91,8 +104,15 @@ async function addProtectedDomain() {
 async function initializeOptions() {
   const pinnedInput = document.getElementById("protectPinned");
   const audibleInput = document.getElementById("protectAudible");
+  const themeInput = document.getElementById("themePreference");
+  const themeController = await themeManager.initializeTheme({
+    storage: globalThis.tabDiscarderStorage,
+    documentScope: document,
+    windowScope: window,
+  });
   const settings = await loadProtectionSettings();
 
+  themeInput.value = themeController.preference;
   pinnedInput.checked = settings.protectPinned;
   audibleInput.checked = settings.protectAudible;
   protectedDomains = getNormalizedProtectedDomains(settings.protectedDomains);
@@ -102,6 +122,9 @@ async function initializeOptions() {
   );
   audibleInput.addEventListener("change", () =>
     saveProtectionSetting(audibleInput, storageKeys.PROTECT_AUDIBLE),
+  );
+  themeInput.addEventListener("change", () =>
+    saveThemePreference(themeInput, themeController),
   );
   document.getElementById("protectedDomainForm").addEventListener("submit", (event) => {
     event.preventDefault();

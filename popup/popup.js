@@ -1,9 +1,8 @@
 const {
   keys: storageKeys,
-  get: getStoredSetting,
-  set: setStoredSetting,
   getProtectionSettings: loadProtectionSettings,
 } = globalThis.tabDiscarderStorage;
+const themeManager = globalThis.tabDiscarderTheme;
 const { deriveTabState, states: tabStates } = globalThis.tabDiscarderTabState;
 const { filterTabs } = globalThis.tabDiscarderTabFilter;
 const { discardTabs, resultStatuses } = globalThis.tabDiscarderDiscardService;
@@ -26,54 +25,11 @@ async function getDiscardPolicy() {
   return loadProtectionSettings();
 }
 
-function isTheme(value) {
-  return value === "light" || value === "dark";
-}
-
-function getLegacyTheme() {
-  try {
-    return window.localStorage.getItem(storageKeys.THEME);
-  } catch {
-    return null;
-  }
-}
-
-function clearLegacyTheme() {
-  try {
-    window.localStorage.removeItem(storageKeys.THEME);
-  } catch {
-    // The migrated theme remains available in extension storage.
-  }
-}
-
-function applyTheme(currentTheme) {
-  document.documentElement.setAttribute("data-theme", currentTheme);
-  document.getElementById("toggleTheme").checked = currentTheme === "dark";
-}
-
-async function theme() {
-  let currentTheme = await getStoredSetting(storageKeys.THEME);
-
-  if (!isTheme(currentTheme)) {
-    const legacyTheme = getLegacyTheme();
-    currentTheme = isTheme(legacyTheme) ? legacyTheme : "light";
-
-    if (
-      isTheme(legacyTheme) &&
-      (await setStoredSetting(storageKeys.THEME, legacyTheme))
-    ) {
-      clearLegacyTheme();
-    }
-  }
-
-  applyTheme(currentTheme);
-
-  document.getElementById("toggleTheme").addEventListener("change", async () => {
-    const newTheme = document.getElementById("toggleTheme").checked
-      ? "dark"
-      : "light";
-    applyTheme(newTheme);
-    await setStoredSetting(storageKeys.THEME, newTheme);
+async function initializeTheme() {
+  await themeManager.initializeTheme({
+    storage: globalThis.tabDiscarderStorage,
+    documentScope: document,
+    windowScope: window,
   });
 }
 
@@ -457,7 +413,7 @@ async function refreshPopup() {
   await Promise.all([renderCurrentWindowTabs(), renderRecentlyAwakenedTabs()]);
 }
 
-theme();
+void initializeTheme();
 initializeSearch();
 initializeQuickActions();
 initializeOptionsLink();

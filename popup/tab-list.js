@@ -40,7 +40,28 @@
     };
   }
 
-  function createFavicon(document, tab) {
+  function getFaviconUrl(tab, runtime = globalScope.chrome?.runtime) {
+    if (typeof tab?.url !== "string" || !tab.url.trim()) {
+      return null;
+    }
+
+    try {
+      new URL(tab.url);
+
+      if (typeof runtime?.getURL !== "function") {
+        return null;
+      }
+
+      const url = new URL(runtime.getURL("/_favicon/"));
+      url.searchParams.set("pageUrl", tab.url);
+      url.searchParams.set("size", "32");
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  function createFavicon(document, tab, runtime) {
     const favicon = document.createElement("span");
     favicon.className = "tab-favicon";
     favicon.setAttribute("aria-hidden", "true");
@@ -50,14 +71,15 @@
     fallback.textContent = "▧";
     favicon.append(fallback);
 
-    if (typeof tab.favIconUrl !== "string" || !tab.favIconUrl.trim()) {
+    const faviconUrl = getFaviconUrl(tab, runtime);
+    if (!faviconUrl) {
       return favicon;
     }
 
     const image = document.createElement("img");
     image.className = "tab-favicon-image";
     image.alt = "";
-    image.src = tab.favIconUrl;
+    image.src = faviconUrl;
     image.addEventListener("load", () => {
       fallback.hidden = true;
     });
@@ -143,6 +165,7 @@
   const tabListRenderer = Object.freeze({
     getTabTitle,
     getTabPresentation,
+    getFaviconUrl,
     createFavicon,
     renderTabList,
     renderTabListError,

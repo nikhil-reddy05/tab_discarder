@@ -38,6 +38,7 @@ function loadOptions({ settings, saveResult = true } = {}) {
     [
       "protectPinned",
       "protectAudible",
+      "themePreference",
       "protectedDomainForm",
       "protectedDomainInput",
       "protectedDomainsList",
@@ -69,6 +70,7 @@ function loadOptions({ settings, saveResult = true } = {}) {
     },
     tabDiscarderStorage: {
       keys: {
+        THEME: "theme",
         PROTECT_PINNED: "protectPinned",
         PROTECT_AUDIBLE: "protectAudible",
         PROTECTED_DOMAINS: "protectedDomains",
@@ -81,6 +83,18 @@ function loadOptions({ settings, saveResult = true } = {}) {
         return saveResult;
       },
     },
+    tabDiscarderTheme: {
+      async initializeTheme() {
+        return {
+          preference: settings?.theme || "system",
+          async setPreference(value) {
+            savedSettings.push(["theme", value]);
+            return saveResult;
+          },
+        };
+      },
+    },
+    window: { matchMedia() { return null; } },
   };
   context.globalThis = context;
   vm.runInNewContext(
@@ -115,6 +129,22 @@ test("loads saved protection choices and persists only the changed setting", asy
   await pinnedInput.getListener("change")();
 
   assert.deepEqual(options.savedSettings, [["protectPinned", true]]);
+  assert.equal(options.elements.get("settingsStatus").textContent, "Settings saved.");
+});
+
+test("loads and persists the system, light, and dark theme preference", async () => {
+  const options = loadOptions({
+    settings: { theme: "system", protectPinned: true, protectAudible: true },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const themeInput = options.elements.get("themePreference");
+  assert.equal(themeInput.value, "system");
+
+  themeInput.value = "dark";
+  await themeInput.getListener("change")();
+
+  assert.deepEqual(options.savedSettings, [["theme", "dark"]]);
   assert.equal(options.elements.get("settingsStatus").textContent, "Settings saved.");
 });
 
