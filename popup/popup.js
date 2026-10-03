@@ -20,6 +20,11 @@ let currentDiscardPolicy;
 const LIVE_REFRESH_DELAY_MS = 100;
 let liveRefreshTimer = null;
 let liveUpdatesInitialized = false;
+const MAX_TAB_REPLACEMENT_HOPS = 20;
+const tabReplacementIds = new Map();
+let replacementRefreshVersion = 0;
+let replacementRefreshPending = false;
+let pendingReplacementAwareActions = 0;
 
 async function getDiscardPolicy() {
   return loadProtectionSettings();
@@ -237,10 +242,16 @@ async function sleepTab(tabId) {
   const status = document.getElementById("bulkActionStatus");
 
   try {
-    const result = await discardTabs([tabId], {
-      policy: await getDiscardPolicy(),
-    });
-    const tabResult = result.results?.[0];
+    const { result, tabResult, stale } = await discardReplacementAwareTab(
+      tabId,
+      getDiscardPolicy(),
+    );
+
+    if (stale) {
+      status.textContent = "Tab changed before it could be slept.";
+      return tabResult;
+    }
+
     if (tabResult?.status === resultStatuses.SUCCESS || result.summary?.discarded) {
       status.textContent = "Tab slept.";
     } else if (tabResult?.status === resultStatuses.SKIPPED || result.summary?.skipped) {
@@ -261,10 +272,15 @@ async function sleepRecentlyAwakenedTab(tabId) {
     // discardTabs re-fetches the tab and applies the shared safety policy
     // immediately before discard, so a tab that became active/protected since
     // this popup rendered is skipped rather than forced to sleep.
-    const result = await discardTabs([tabId], {
-      policy: await getDiscardPolicy(),
-    });
-    const tabResult = result.results?.[0];
+    const { result, tabResult, stale } = await discardReplacementAwareTab(
+      tabId,
+      getDiscardPolicy(),
+    );
+
+    if (stale) {
+      status.textContent = "Tab changed before it could be slept again.";
+      return tabResult;
+    }
 
     if (tabResult?.status === resultStatuses.SUCCESS || result.summary?.discarded) {
       status.textContent = "Tab slept again.";
@@ -366,6 +382,107 @@ function initializeOptionsLink() {
   document.getElementById("openOptions").addEventListener("click", openOptions);
 }
 
+function isTabId(tabId) {
+  return Number.isInteger(tabId) && tabId >= 0;
+}
+
+function recordTabReplacement(addedTabId, removedTabId) {
+  if (!isTabId(addedTabId) || !isTabId(removedTabId) || addedTabId === removedTabId) {
+    return;
+  }
+
+  tabReplacementIds.set(removedTabId, addedTabId);
+}
+
+function resolveReplacementTabId(tabId) {
+  if (!isTabId(tabId)) {
+    return null;
+  }
+
+  let currentTabId = tabId;
+  const visitedTabIds = new Set([currentTabId]);
+
+  for (let hops = 0; hops < MAX_TAB_REPLACEMENT_HOPS; hops += 1) {
+    const replacementTabId = tabReplacementIds.get(currentTabId);
+    if (!isTabId(replacementTabId)) {
+      return currentTabId;
+    }
+
+    if (visitedTabIds.has(replacementTabId)) {
+      // A replacement chain should never cycle, but treating one as stale is
+      // safer than risking an action against an unrelated or removed tab.
+      return null;
+    }
+
+    visitedTabIds.add(replacementTabId);
+    currentTabId = replacementTabId;
+  }
+
+  // Bound the chain so malformed or unexpected event sequences cannot loop.
+  return null;
+}
+
+function isMissingTabResult(tabResult) {
+  return (
+    tabResult?.status === resultStatuses.ERROR &&
+    /no tab with id/i.test(tabResult?.error?.message || "")
+  );
+}
+
+function createStaleTabResult(tabId) {
+  return {
+    status: resultStatuses.SKIPPED,
+    tabId,
+    reason: "stale-tab",
+  };
+}
+
+function clearReplacementIdsWhenUnused() {
+  if (!replacementRefreshPending && pendingReplacementAwareActions === 0) {
+    tabReplacementIds.clear();
+  }
+}
+
+async function discardReplacementAwareTab(tabId, policyPromise) {
+  pendingReplacementAwareActions += 1;
+
+  try {
+    const policy = await policyPromise;
+    let targetTabId = resolveReplacementTabId(tabId);
+    if (targetTabId === null) {
+      return { tabResult: createStaleTabResult(tabId), stale: true };
+    }
+
+    let result = await discardTabs([targetTabId], { policy });
+    let tabResult = result.results?.[0];
+
+    // Chrome can replace a tab after the initial resolution but before the
+    // discard service's live get. Retry only when onReplaced gives us a distinct
+    // current ID; this is not a blind retry of a missing tab.
+    if (isMissingTabResult(tabResult)) {
+      const replacementTabId = resolveReplacementTabId(targetTabId);
+      if (replacementTabId !== null && replacementTabId !== targetTabId) {
+        targetTabId = replacementTabId;
+        result = await discardTabs([targetTabId], { policy });
+        tabResult = result.results?.[0];
+      }
+    }
+
+    if (isMissingTabResult(tabResult)) {
+      return {
+        result,
+        tabResult: createStaleTabResult(targetTabId),
+        stale: true,
+      };
+    }
+
+    return { result, tabResult, stale: false };
+  } finally {
+    pendingReplacementAwareActions -= 1;
+    clearReplacementIdsWhenUnused();
+  }
+}
+
 function scheduleLiveRefresh() {
   if (liveRefreshTimer !== null) {
     return;
@@ -375,6 +492,28 @@ function scheduleLiveRefresh() {
     liveRefreshTimer = null;
     void refreshPopup();
   }, LIVE_REFRESH_DELAY_MS);
+}
+
+function refreshForTabReplacement(addedTabId, removedTabId) {
+  recordTabReplacement(addedTabId, removedTabId);
+
+  if (liveRefreshTimer !== null) {
+    globalThis.clearTimeout(liveRefreshTimer);
+    liveRefreshTimer = null;
+  }
+
+  // A replacement invalidates a rendered row ID, so reconcile immediately
+  // rather than leaving it until the normal event debounce elapses. The map is
+  // popup-memory only and is cleared once the latest replacement refresh has
+  // updated the UI, when stale row closures can no longer be used.
+  const refreshVersion = ++replacementRefreshVersion;
+  replacementRefreshPending = true;
+  void refreshPopup().finally(() => {
+    if (refreshVersion === replacementRefreshVersion) {
+      replacementRefreshPending = false;
+      clearReplacementIdsWhenUnused();
+    }
+  });
 }
 
 function addLiveUpdateListener(event, listener) {
@@ -395,7 +534,7 @@ function initializeLiveUpdates() {
   addLiveUpdateListener(tabs?.onActivated, scheduleLiveRefresh);
   addLiveUpdateListener(tabs?.onCreated, scheduleLiveRefresh);
   addLiveUpdateListener(tabs?.onRemoved, scheduleLiveRefresh);
-  addLiveUpdateListener(tabs?.onReplaced, scheduleLiveRefresh);
+  addLiveUpdateListener(tabs?.onReplaced, refreshForTabReplacement);
   addLiveUpdateListener(tabs?.onAttached, scheduleLiveRefresh);
   addLiveUpdateListener(tabs?.onDetached, scheduleLiveRefresh);
   addLiveUpdateListener(tabs?.onMoved, scheduleLiveRefresh);

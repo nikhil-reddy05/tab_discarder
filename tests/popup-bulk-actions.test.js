@@ -3,6 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const tabStateModel = require("../lib/tab-state.js");
+const { discardTabs: discardTabsWithPolicy } = require("../lib/discard-service.js");
 
 function createElement() {
   const listeners = new Map();
@@ -39,6 +41,31 @@ function createEvent() {
       return listeners.length;
     },
   };
+}
+
+function createLiveDiscardTabs(tabs, chromeDiscardCalls) {
+  const tabsApi = {
+    async get(tabId) {
+      const tab = tabs.find((candidate) => candidate.id === tabId);
+      if (!tab) {
+        throw new Error(`No tab with id: ${tabId}`);
+      }
+      return tab;
+    },
+    async discard(tabId) {
+      chromeDiscardCalls.push(tabId);
+      const tab = tabs.find((candidate) => candidate.id === tabId);
+      tab.discarded = true;
+      return tab;
+    },
+  };
+
+  return (tabIds, options) =>
+    discardTabsWithPolicy(tabIds, {
+      ...options,
+      tabsApi,
+      tabStateModel,
+    });
 }
 
 function loadPopup({
@@ -442,6 +469,239 @@ test("single-tab Sleep uses the current protection policy and refreshes the wind
   assert.equal(popup.queryCalls.length, 2);
   assert.ok(popup.queryCalls.every((query) => query.currentWindow === true));
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+});
+
+test("single-tab Sleep keeps the first success when discard returns a replacement tab", async () => {
+  const tabA = { id: 31, windowId: 7, groupId: -1, active: false };
+  const discardedTabB = {
+    id: 32,
+    windowId: 7,
+    groupId: -1,
+    active: false,
+    discarded: true,
+  };
+  const tabs = [tabA];
+  const getCalls = [];
+  const chromeDiscardCalls = [];
+  const tabsApi = {
+    async get(tabId) {
+      getCalls.push(tabId);
+      if (tabId !== tabA.id) {
+        throw new Error(`No tab with id: ${tabId}`);
+      }
+      return tabA;
+    },
+    async discard(tabId) {
+      chromeDiscardCalls.push(tabId);
+      return discardedTabB;
+    },
+  };
+  const popup = loadPopup({
+    tabs,
+    discardTabs(tabIds, options) {
+      return discardTabsWithPolicy(tabIds, {
+        ...options,
+        tabsApi,
+        tabStateModel,
+      });
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const result = await popup.sleepSingleTab(tabA.id);
+
+  assert.deepEqual(getCalls, [tabA.id]);
+  assert.deepEqual(chromeDiscardCalls, [tabA.id]);
+  assert.equal(result.status, "success");
+  assert.equal(result.tabId, discardedTabB.id);
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+});
+
+test("single-tab Sleep retries only after a genuine missing-tab result is mapped", async () => {
+  const tabA = { id: 36, windowId: 7, groupId: -1, active: false };
+  const tabB = { id: 37, windowId: 7, groupId: -1, active: false };
+  const tabs = [tabA];
+  const discardCalls = [];
+  let popup;
+  popup = loadPopup({
+    tabs,
+    async discardTabs(tabIds) {
+      discardCalls.push(Array.from(tabIds));
+      if (discardCalls.length === 1) {
+        tabs.splice(0, 1, tabB);
+        popup.tabEvents.onReplaced.emit(tabB.id, tabA.id);
+        return {
+          results: [
+            {
+              status: "error",
+              tabId: tabA.id,
+              error: { message: `No tab with id: ${tabA.id}` },
+            },
+          ],
+          summary: { discarded: 0, skipped: 0, failed: 1 },
+        };
+      }
+
+      return {
+        results: [{ status: "success", tabId: tabB.id }],
+        summary: { discarded: 1, skipped: 0, failed: 0 },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const result = await popup.sleepSingleTab(tabA.id);
+
+  assert.deepEqual(discardCalls, [[tabA.id], [tabB.id]]);
+  assert.equal(result.status, "success");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+});
+
+test("single-tab Sleep resolves a replaced row ID before the normal live refresh delay", async () => {
+  const tabA = { id: 41, windowId: 7, groupId: -1, active: false };
+  const tabB = { id: 42, windowId: 7, groupId: -1, active: false };
+  const tabs = [tabA];
+  const chromeDiscardCalls = [];
+  const popup = loadPopup({
+    tabs,
+    discardTabs: createLiveDiscardTabs(tabs, chromeDiscardCalls),
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(
+    Array.from(popup.renderCalls[0], (tab) => tab.id),
+    [tabA.id],
+  );
+  tabs.splice(0, 1, tabB);
+  const queryCountBeforeReplacement = popup.queryCalls.length;
+  popup.tabEvents.onReplaced.emit(tabB.id, tabA.id);
+
+  // onReplaced must reconcile now, rather than enqueueing the usual 100 ms
+  // refresh that would leave a rendered closure holding tab A's stale ID.
+  assert.equal(popup.getScheduledRefreshCount(), 0);
+  assert.ok(popup.queryCalls.length > queryCountBeforeReplacement);
+
+  await popup.sleepSingleTab(tabA.id);
+
+  assert.deepEqual(chromeDiscardCalls, [tabB.id]);
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+});
+
+test("single-tab Sleep keeps live protection checks when the replacement is active", async () => {
+  const tabA = { id: 51, windowId: 7, groupId: -1, active: false };
+  const activeTabB = { id: 52, windowId: 7, groupId: -1, active: true };
+  const tabs = [tabA];
+  const chromeDiscardCalls = [];
+  const popup = loadPopup({
+    tabs,
+    discardTabs: createLiveDiscardTabs(tabs, chromeDiscardCalls),
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  tabs.splice(0, 1, activeTabB);
+  popup.tabEvents.onReplaced.emit(activeTabB.id, tabA.id);
+
+  await popup.sleepSingleTab(tabA.id);
+
+  assert.deepEqual(chromeDiscardCalls, []);
+  assert.equal(
+    popup.elements.get("bulkActionStatus").textContent,
+    "Tab is currently protected and was not slept.",
+  );
+});
+
+test("single-tab Sleep keeps pinned replacement tabs protected", async () => {
+  const tabA = { id: 55, windowId: 7, groupId: -1, active: false };
+  const pinnedTabB = {
+    id: 56,
+    windowId: 7,
+    groupId: -1,
+    active: false,
+    pinned: true,
+  };
+  const tabs = [tabA];
+  const chromeDiscardCalls = [];
+  const popup = loadPopup({
+    tabs,
+    discardTabs: createLiveDiscardTabs(tabs, chromeDiscardCalls),
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  tabs.splice(0, 1, pinnedTabB);
+  popup.tabEvents.onReplaced.emit(pinnedTabB.id, tabA.id);
+
+  await popup.sleepSingleTab(tabA.id);
+
+  assert.deepEqual(chromeDiscardCalls, []);
+  assert.equal(
+    popup.elements.get("bulkActionStatus").textContent,
+    "Tab is currently protected and was not slept.",
+  );
+});
+
+test("single-tab Sleep safely follows a chain of tab replacements", async () => {
+  const tabA = { id: 61, windowId: 7, groupId: -1, active: false };
+  const tabB = { id: 62, windowId: 7, groupId: -1, active: false };
+  const tabC = { id: 63, windowId: 7, groupId: -1, active: false };
+  const tabs = [tabA];
+  const discardCalls = [];
+  const popup = loadPopup({
+    tabs,
+    async discardTabs(tabIds) {
+      discardCalls.push(tabIds);
+      return {
+        results: [{ status: "success", tabId: tabIds[0] }],
+        summary: { discarded: 1, skipped: 0, failed: 0 },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  tabs.splice(0, 1, tabB);
+  popup.tabEvents.onReplaced.emit(tabB.id, tabA.id);
+  tabs.splice(0, 1, tabC);
+  popup.tabEvents.onReplaced.emit(tabC.id, tabB.id);
+
+  await popup.sleepSingleTab(tabA.id);
+
+  assert.deepEqual(Array.from(discardCalls[0]), [tabC.id]);
+});
+
+test("a replacement that disappears is reported as stale UI instead of a discard failure", async () => {
+  const tabA = { id: 71, windowId: 7, groupId: -1, active: false };
+  const tabB = { id: 72, windowId: 7, groupId: -1, active: false };
+  const tabs = [tabA];
+  const discardCalls = [];
+  const popup = loadPopup({
+    tabs,
+    async discardTabs(tabIds) {
+      discardCalls.push(tabIds);
+      return {
+        results: [
+          {
+            status: "error",
+            tabId: tabIds[0],
+            error: { message: `No tab with id: ${tabIds[0]}` },
+          },
+        ],
+        summary: { discarded: 0, skipped: 0, failed: 1 },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  tabs.splice(0, 1, tabB);
+  popup.tabEvents.onReplaced.emit(tabB.id, tabA.id);
+
+  const result = await popup.sleepSingleTab(tabA.id);
+
+  assert.deepEqual(Array.from(discardCalls[0]), [tabB.id]);
+  assert.equal(result.status, "skipped");
+  assert.equal(result.reason, "stale-tab");
+  assert.equal(
+    popup.elements.get("bulkActionStatus").textContent,
+    "Tab changed before it could be slept.",
+  );
 });
 
 test("window and group sleep actions use the latest stored protection policy", async () => {

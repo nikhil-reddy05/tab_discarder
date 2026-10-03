@@ -34,20 +34,16 @@ function createTabsApi(
   };
 }
 
-test("manually discards a tab and confirms its state afterward", async () => {
+test("accepts Chrome's returned discarded tab without a follow-up get", async () => {
   const tab = { id: 17, active: false, discarded: false };
   const discardedTab = { ...tab, discarded: true };
   const tabsApi = createTabsApi(tab, {
     discardResult: discardedTab,
-    getResults: [discardedTab],
   });
 
   const result = await discardTab(17, { tabsApi, tabStateModel });
 
-  assert.deepEqual(tabsApi.calls, [
-    ["discard", 17],
-    ["get", 17],
-  ]);
+  assert.deepEqual(tabsApi.calls, [["discard", 17]]);
   assert.deepEqual(result, {
     status: resultStatuses.SUCCESS,
     tabId: 17,
@@ -69,19 +65,30 @@ test("returns an error without fabricating a sleeping tab when discard is unconf
   });
 });
 
-test("returns an error when the post-discard tab fetch is still awake", async () => {
+test("uses a replacement ID returned by Chrome as the successful tab ID", async () => {
+  const tabA = { id: 23, active: false, discarded: false };
+  const discardedTabB = { id: 24, active: false, discarded: true };
+  const tabsApi = createTabsApi(tabA, { discardResult: discardedTabB });
+
+  const result = await discardTab(tabA.id, { tabsApi, tabStateModel });
+
+  assert.deepEqual(tabsApi.calls, [["discard", tabA.id]]);
+  assert.deepEqual(result, {
+    status: resultStatuses.SUCCESS,
+    tabId: discardedTabB.id,
+    tab: discardedTabB,
+  });
+});
+
+test("returns an error when Chrome returns an awake tab from discard", async () => {
   const tab = { id: 23, active: false, discarded: false };
   const tabsApi = createTabsApi(tab, {
-    discardResult: { ...tab, discarded: true },
-    getResults: [tab],
+    discardResult: tab,
   });
 
   const result = await discardTab(23, { tabsApi, tabStateModel });
 
-  assert.deepEqual(tabsApi.calls, [
-    ["discard", 23],
-    ["get", 23],
-  ]);
+  assert.deepEqual(tabsApi.calls, [["discard", 23]]);
   assert.deepEqual(result, {
     status: resultStatuses.ERROR,
     tabId: 23,
@@ -109,7 +116,7 @@ test("manual Sleep attempts discard after switching away from a previously activ
 
   const result = await discardTab(1, { tabsApi, tabStateModel });
 
-  assert.deepEqual(calls, [["discard", 1], ["get", 1]]);
+  assert.deepEqual(calls, [["discard", 1]]);
   assert.equal(result.status, resultStatuses.SUCCESS);
   assert.deepEqual(result.tab, tabAAfterDiscard);
 });
