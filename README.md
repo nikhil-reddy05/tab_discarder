@@ -13,14 +13,14 @@ performance.
 \:new\_moon: Built-in Light / Dark mode toggle
 \:dart: Simple, fast, and clean UI
 
-## 🚀 Installation
+## Installation
 
 1. Go to the [Chrome Web Store listing](https://chromewebstore.google.com/detail/hffeenefcoplnpffddgkmlohbmjpmcji).
 2. Click **Add to Chrome**
 3. Click **Add Extension** in the confirmation dialog
 4. Pin the extension to your toolbar for quick access
 
-## 🧩 Usage
+## Usage
 
 - Click the extension icon to open the popup.
 - View tabs in the current browser window.
@@ -57,12 +57,23 @@ keeps the tab awake when Chrome does not confirm the discard.
 * Chrome Tabs API
 * HTML, CSS
 
+## Testing
+
+Run the complete dependency-free Node test suite from the repository root:
+
+```sh
+npm test
+```
+
+The tests use Node's built-in test runner, so no package installation or
+network access is required.
+
 
 ## \:sparkles: Credits
 
 Inspired by Chrome's built-in tab discarding, but with a clean manual interface and better visibility.
 
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

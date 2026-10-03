@@ -385,7 +385,7 @@ test("Sleep this group is hidden for an active ungrouped tab", async () => {
   assert.equal(action.disabled, true);
 });
 
-test("Sleep this window uses the shared current-window batch action", async () => {
+test("Sleep other tabs and Sleep this window share the current-window batch action", async () => {
   const tabs = [
     { id: 1, active: true },
     { id: 2, active: false },
@@ -400,7 +400,7 @@ test("Sleep this window uses the shared current-window batch action", async () =
     },
   });
 
-  await popup.elements.get("sleepThisWindow").getListener("click")();
+  await popup.elements.get("sleepOtherTabs").getListener("click")();
 
   assert.deepEqual(discardCalls, [[1, 2, 3]]);
   assert.equal(popup.queryCalls.length, 3);
@@ -408,6 +408,11 @@ test("Sleep this window uses the shared current-window batch action", async () =
   assert.equal(popup.elements.get("sleepOtherTabs").disabled, false);
   assert.equal(popup.elements.get("sleepThisWindow").disabled, false);
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 2 skipped");
+
+  await popup.elements.get("sleepThisWindow").getListener("click")();
+
+  assert.deepEqual(discardCalls, [[1, 2, 3], [1, 2, 3]]);
+  assert.equal(popup.queryCalls.length, 5);
   assert.ok(popup.renderCalls.length > 0);
 });
 

@@ -227,7 +227,7 @@ test("returns only valid recent records in newest-first order for the popup", ()
         2: { tabId: 2, windowId: 20, awakenedAt: 200 },
         stale: { tabId: 3, windowId: 30 },
       },
-    }),
+    }, () => 300),
     [
       { tabId: 2, windowId: 20, awakenedAt: 200 },
       { tabId: 1, windowId: 10, awakenedAt: 100 },
