@@ -161,7 +161,7 @@ test("storage.js and popup.js load and initialize in one classic-script global",
   const popup = await loadSharedPageScripts("popup");
 
   assert.ok(popup.getCurrentWindowQueryCount() > 0);
-  assert.equal(popup.elements.get("tabSummary").textContent, "1 awake · 0 sleeping");
+  assert.equal(popup.elements.get("tabSummary").textContent, "1 awake · 0 discarded");
 });
 
 test("storage.js and options.js load and initialize in one classic-script global", async () => {

@@ -361,7 +361,7 @@ test("Sleep group resolves live members and protects tabs that leave the group",
   assert.deepEqual(discardCalls[0].tabIds, [1, 2]);
   assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: 3 }), true);
   assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: 4 }), false);
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 1 skipped");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 discarded · 1 skipped");
   assert.equal(popup.groupRenderCalls.length, 2);
 });
 
@@ -394,7 +394,7 @@ test("Sleep this group is available for an active grouped tab and reuses Sleep g
   assert.deepEqual(discardCalls[0].tabIds, [1, 2]);
   assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: 3 }), true);
   assert.equal(discardCalls[0].options.shouldDiscardTab({ groupId: -1 }), false);
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 1 skipped");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 discarded · 1 skipped");
 });
 
 test("Sleep this group is hidden for an active ungrouped tab", async () => {
@@ -434,7 +434,7 @@ test("Sleep other tabs and Sleep this window share the current-window batch acti
   assert.ok(popup.queryCalls.every((query) => query.currentWindow === true));
   assert.equal(popup.elements.get("sleepOtherTabs").disabled, false);
   assert.equal(popup.elements.get("sleepThisWindow").disabled, false);
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 slept · 2 skipped");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 discarded · 2 skipped");
 
   await popup.elements.get("sleepThisWindow").getListener("click")();
 
@@ -468,7 +468,7 @@ test("single-tab Sleep uses the current protection policy and refreshes the wind
   });
   assert.equal(popup.queryCalls.length, 2);
   assert.ok(popup.queryCalls.every((query) => query.currentWindow === true));
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
 test("single-tab Sleep keeps the first success when discard returns a replacement tab", async () => {
@@ -514,7 +514,7 @@ test("single-tab Sleep keeps the first success when discard returns a replacemen
   assert.deepEqual(chromeDiscardCalls, [tabA.id]);
   assert.equal(result.status, "success");
   assert.equal(result.tabId, discardedTabB.id);
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
 test("single-tab Sleep retries only after a genuine missing-tab result is mapped", async () => {
@@ -554,7 +554,7 @@ test("single-tab Sleep retries only after a genuine missing-tab result is mapped
 
   assert.deepEqual(discardCalls, [[tabA.id], [tabB.id]]);
   assert.equal(result.status, "success");
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
 test("single-tab Sleep resolves a replaced row ID before the normal live refresh delay", async () => {
@@ -584,7 +584,7 @@ test("single-tab Sleep resolves a replaced row ID before the normal live refresh
   await popup.sleepSingleTab(tabA.id);
 
   assert.deepEqual(chromeDiscardCalls, [tabB.id]);
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept.");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
 test("single-tab Sleep keeps live protection checks when the replacement is active", async () => {
@@ -606,7 +606,7 @@ test("single-tab Sleep keeps live protection checks when the replacement is acti
   assert.deepEqual(chromeDiscardCalls, []);
   assert.equal(
     popup.elements.get("bulkActionStatus").textContent,
-    "Tab is currently protected and was not slept.",
+    "Tab is currently protected and was not discarded.",
   );
 });
 
@@ -635,7 +635,7 @@ test("single-tab Sleep keeps pinned replacement tabs protected", async () => {
   assert.deepEqual(chromeDiscardCalls, []);
   assert.equal(
     popup.elements.get("bulkActionStatus").textContent,
-    "Tab is currently protected and was not slept.",
+    "Tab is currently protected and was not discarded.",
   );
 });
 
@@ -700,7 +700,7 @@ test("a replacement that disappears is reported as stale UI instead of a discard
   assert.equal(result.reason, "stale-tab");
   assert.equal(
     popup.elements.get("bulkActionStatus").textContent,
-    "Tab changed before it could be slept.",
+    "Tab changed before it could be discarded.",
   );
 });
 
@@ -768,7 +768,7 @@ test("Sleep again uses the policy-aware shared batch service and refreshes Recen
   await popup.sleepRecentlyAwakenedTab(2);
 
   assert.deepEqual(Array.from(discardCalls, (tabIds) => Array.from(tabIds)), [[2]]);
-  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab slept again.");
+  assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded again.");
   assert.ok(popup.recentlyAwakenedRenderCalls.length > 1);
   assert.deepEqual(
     Array.from(

@@ -113,7 +113,7 @@
 
     const summary = document.createElement("span");
     summary.className = "group-summary";
-    summary.textContent = `${groupSummary.totalCount} tabs · ${groupSummary.awakeCount} awake · ${groupSummary.sleepingCount} sleeping`;
+    summary.textContent = `${groupSummary.totalCount} tabs · ${groupSummary.awakeCount} awake · ${groupSummary.sleepingCount} discarded`;
     details.append(summary);
 
     header.append(details);
@@ -148,16 +148,16 @@
     const action = document.createElement("button");
     action.className = "group-sleep-action";
     action.type = "button";
-    action.textContent = "Sleep group";
+    action.textContent = "Discard group";
     action.addEventListener("click", async () => {
       action.disabled = true;
-      action.textContent = "Sleeping…";
+      action.textContent = "Discarding…";
 
       try {
         await onSleepGroup(groupSummary.groupId);
       } finally {
         action.disabled = false;
-        action.textContent = "Sleep group";
+        action.textContent = "Discard group";
       }
     });
     const actions = document.createElement("div");

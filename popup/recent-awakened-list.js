@@ -1,7 +1,7 @@
 (function registerRecentlyAwakenedList(globalScope) {
   const STATE_LABELS = Object.freeze({
     active: "Active",
-    sleeping: "Sleeping",
+    sleeping: "Discarded",
     "playing-audio": "Playing audio",
     pinned: "Pinned",
     "protected-domain": "Protected site",
@@ -30,7 +30,7 @@
   function getRecentTabPresentation(tab, tabStateModel, policy) {
     const eligibility = tabStateModel.getDiscardEligibility(tab, policy);
     if (eligibility.eligible) {
-      return { kind: "action", label: "Sleep again" };
+      return { kind: "action", label: "Discard again" };
     }
 
     return {
@@ -78,10 +78,10 @@
       action.className = "recent-awakened-sleep-action";
       action.type = "button";
       action.textContent = presentation.label;
-      action.title = "Sleep this tab again";
+      action.title = "Discard this tab again";
       action.addEventListener("click", async () => {
         action.disabled = true;
-        action.textContent = "Sleeping…";
+        action.textContent = "Discarding…";
 
         try {
           await onSleepAgain(entry.tab.id);

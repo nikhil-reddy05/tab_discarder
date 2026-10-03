@@ -1,7 +1,7 @@
 (function registerTabListRenderer(globalScope) {
   const STATE_LABELS = Object.freeze({
     active: "Active",
-    sleeping: "Sleeping",
+    sleeping: "Discarded",
     "playing-audio": "Playing audio",
     pinned: "Pinned",
     "protected-domain": "Protected site",
@@ -31,7 +31,7 @@
     const eligibility = tabStateModel.getDiscardEligibility(tab, policy);
 
     if (eligibility.eligible) {
-      return { kind: "action", label: "Sleep" };
+      return { kind: "action", label: "Discard" };
     }
 
     return {
@@ -113,10 +113,10 @@
       action.className = "tab-sleep-action";
       action.type = "button";
       action.textContent = presentation.label;
-      action.title = "Sleep this tab";
+      action.title = "Discard this tab";
       action.addEventListener("click", async () => {
         action.disabled = true;
-        action.textContent = "Sleeping…";
+        action.textContent = "Discarding…";
 
         try {
           await onSleep(tab.id);

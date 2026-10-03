@@ -44,7 +44,7 @@ function formatTabSummary(tabs) {
   ).length;
   const awakeCount = tabs.length - sleepingCount;
 
-  return `${awakeCount} awake · ${sleepingCount} sleeping`;
+  return `${awakeCount} awake · ${sleepingCount} discarded`;
 }
 
 async function renderCurrentWindowTabs() {
@@ -168,7 +168,7 @@ async function renderCurrentWindowGroups(tabs, policy) {
 
 async function sleepGroup(groupId) {
   const status = document.getElementById("bulkActionStatus");
-  status.textContent = "Sleeping eligible group tabs…";
+  status.textContent = "Discarding eligible group tabs…";
 
   try {
     const memberTabs = await chrome.tabs.query({ groupId });
@@ -185,7 +185,7 @@ async function sleepGroup(groupId) {
     status.textContent = formatBulkDiscardSummary(result.summary);
     return result;
   } catch {
-    status.textContent = "Could not sleep this group right now.";
+    status.textContent = "Could not discard this group right now.";
     return { status: resultStatuses.ERROR };
   } finally {
     await refreshPopup();
@@ -248,16 +248,16 @@ async function sleepTab(tabId) {
     );
 
     if (stale) {
-      status.textContent = "Tab changed before it could be slept.";
+      status.textContent = "Tab changed before it could be discarded.";
       return tabResult;
     }
 
     if (tabResult?.status === resultStatuses.SUCCESS || result.summary?.discarded) {
-      status.textContent = "Tab slept.";
+      status.textContent = "Tab discarded.";
     } else if (tabResult?.status === resultStatuses.SKIPPED || result.summary?.skipped) {
-      status.textContent = "Tab is currently protected and was not slept.";
+      status.textContent = "Tab is currently protected and was not discarded.";
     } else {
-      status.textContent = "Could not sleep this tab.";
+      status.textContent = "Could not discard this tab.";
     }
     return tabResult || result;
   } finally {
@@ -278,21 +278,21 @@ async function sleepRecentlyAwakenedTab(tabId) {
     );
 
     if (stale) {
-      status.textContent = "Tab changed before it could be slept again.";
+      status.textContent = "Tab changed before it could be discarded again.";
       return tabResult;
     }
 
     if (tabResult?.status === resultStatuses.SUCCESS || result.summary?.discarded) {
-      status.textContent = "Tab slept again.";
+      status.textContent = "Tab discarded again.";
     } else if (tabResult?.status === resultStatuses.SKIPPED || result.summary?.skipped) {
-      status.textContent = "Tab is currently protected and was not slept.";
+      status.textContent = "Tab is currently protected and was not discarded.";
     } else {
-      status.textContent = "Could not sleep this tab again.";
+      status.textContent = "Could not discard this tab again.";
     }
 
     return tabResult || result;
   } catch {
-    status.textContent = "Could not sleep this tab again.";
+    status.textContent = "Could not discard this tab again.";
     return { status: resultStatuses.ERROR };
   } finally {
     await refreshPopup();
@@ -303,7 +303,7 @@ function formatBulkDiscardSummary(summary) {
   const parts = [];
 
   if (summary.discarded > 0) {
-    parts.push(`${summary.discarded} slept`);
+    parts.push(`${summary.discarded} discarded`);
   }
   if (summary.skipped > 0) {
     parts.push(`${summary.skipped} skipped`);
@@ -312,7 +312,7 @@ function formatBulkDiscardSummary(summary) {
     parts.push(`${summary.failed} failed`);
   }
 
-  return parts.length > 0 ? parts.join(" · ") : "No tabs to sleep.";
+  return parts.length > 0 ? parts.join(" · ") : "No tabs to discard.";
 }
 
 function setCurrentWindowSleepActionsDisabled(disabled) {
@@ -323,7 +323,7 @@ function setCurrentWindowSleepActionsDisabled(disabled) {
 async function sleepEligibleBackgroundTabsInCurrentWindow() {
   const status = document.getElementById("bulkActionStatus");
   setCurrentWindowSleepActionsDisabled(true);
-  status.textContent = "Sleeping eligible tabs…";
+  status.textContent = "Discarding eligible tabs…";
 
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
@@ -334,7 +334,7 @@ async function sleepEligibleBackgroundTabsInCurrentWindow() {
     await refreshPopup();
     return result;
   } catch {
-    status.textContent = "Could not sleep tabs right now.";
+    status.textContent = "Could not discard tabs right now.";
     return { status: resultStatuses.ERROR };
   } finally {
     setCurrentWindowSleepActionsDisabled(false);

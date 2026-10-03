@@ -92,7 +92,7 @@ test("maps centralized state and eligibility to the tab-row presentation", () =>
   });
   assert.deepEqual(getTabPresentation({ discarded: true }, tabStateModel), {
     kind: "badge",
-    label: "Sleeping",
+    label: "Discarded",
   });
   assert.deepEqual(getTabPresentation({ audible: true }, tabStateModel), {
     kind: "badge",
@@ -104,7 +104,7 @@ test("maps centralized state and eligibility to the tab-row presentation", () =>
   });
   assert.deepEqual(getTabPresentation({}, tabStateModel), {
     kind: "action",
-    label: "Sleep",
+    label: "Discard",
   });
   assert.deepEqual(
     getTabPresentation(
@@ -112,7 +112,7 @@ test("maps centralized state and eligibility to the tab-row presentation", () =>
       tabStateModel,
       { protectPinned: false, protectAudible: true },
     ),
-    { kind: "action", label: "Sleep" },
+    { kind: "action", label: "Discard" },
   );
   assert.deepEqual(
     getTabPresentation(

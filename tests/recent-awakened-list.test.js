@@ -82,7 +82,7 @@ test("reflects protected recent tabs instead of offering Sleep again", () => {
   });
   assert.deepEqual(getRecentTabPresentation({}, tabStateModel), {
     kind: "action",
-    label: "Sleep again",
+    label: "Discard again",
   });
 });
 
@@ -133,7 +133,7 @@ test("renders live tab details safely and sends Sleep again through its callback
   assert.equal(container.children[0].children[1].textContent, "Active");
 
   const sleepAgain = container.children[1].children[1];
-  assert.equal(sleepAgain.textContent, "Sleep again");
+  assert.equal(sleepAgain.textContent, "Discard again");
   await sleepAgain.getListener("click")();
   assert.deepEqual(sleepCalls, [2]);
 });
