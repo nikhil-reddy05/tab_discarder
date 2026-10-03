@@ -138,7 +138,7 @@
         `${expanded ? "Hide" : "Show"} tabs in ${groupSummary.title}`,
       );
       expandAction.title = expanded ? "Hide group tabs" : "Show group tabs";
-      expandAction.textContent = expanded ? "⌃" : "⌄";
+      expandAction.textContent = expanded ? "▲" : "▼"; 
     }
 
     setExpanded(false);
