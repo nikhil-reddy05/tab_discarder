@@ -12,9 +12,9 @@ const {
 } = require("../popup/group-list.js");
 
 const tabStateModel = {
-  states: { SLEEPING: "sleeping" },
+  states: { DISCARDED: "discarded" },
   deriveTabState(tab) {
-    return tab.discarded ? "sleeping" : "awake";
+    return tab.discarded ? "discarded" : "awake";
   },
 };
 
@@ -85,7 +85,7 @@ test("builds one factual summary per live Chrome group", () => {
       ],
       totalCount: 2,
       awakeCount: 1,
-      sleepingCount: 1,
+      discardedCount: 1,
     },
     {
       groupId: 11,
@@ -95,14 +95,18 @@ test("builds one factual summary per live Chrome group", () => {
       memberTabs: [{ id: 3, groupId: 11, discarded: true }],
       totalCount: 1,
       awakeCount: 0,
-      sleepingCount: 1,
+      discardedCount: 1,
     },
   ]);
 });
 
 test("keeps only ungrouped tabs in This window and safely falls back for metadata", () => {
   assert.deepEqual(
-    getUngroupedTabs([{ id: 1, groupId: -1 }, { id: 2, groupId: 4 }, { id: 3 }]),
+    getUngroupedTabs([
+      { id: 1, groupId: -1 },
+      { id: 2, groupId: 4 },
+      { id: 3 },
+    ]),
     [{ id: 1, groupId: -1 }, { id: 3 }],
   );
   assert.equal(getGroupTitle({ title: "  " }), "Untitled group");
@@ -136,11 +140,14 @@ test("expands and collapses current members with the shared tab-row renderer", (
   const container = createFakeElement();
   container.ownerDocument = document;
   const renderedMembers = [];
-  const memberTabs = [{ id: 1, groupId: 10 }, { id: 2, groupId: 10 }];
+  const memberTabs = [
+    { id: 1, groupId: 10 },
+    { id: 2, groupId: 10 },
+  ];
   const discardPolicy = { protectPinned: false, protectAudible: true };
   const tabListRenderer = {
-    renderTabList(list, tabs, stateModel, onSleep, policy) {
-      renderedMembers.push({ list, tabs, stateModel, onSleep, policy });
+    renderTabList(list, tabs, stateModel, onDiscard, policy) {
+      renderedMembers.push({ list, tabs, stateModel, onDiscard, policy });
     },
   };
 
@@ -155,11 +162,11 @@ test("expands and collapses current members with the shared tab-row renderer", (
         memberTabs,
         totalCount: 2,
         awakeCount: 2,
-        sleepingCount: 0,
+        discardedCount: 0,
       },
     ],
     () => {},
-    { tabListRenderer, tabStateModel, onSleepTab: () => {}, discardPolicy },
+    { tabListRenderer, tabStateModel, onDiscardTab: () => {}, discardPolicy },
   );
 
   const row = container.children[0];
@@ -177,19 +184,25 @@ test("expands and collapses current members with the shared tab-row renderer", (
   assert.equal(actions.className, "group-actions");
   assert.equal(memberList.getAttribute("aria-labelledby"), "group-title-10");
   assert.equal(expandAction.getAttribute("aria-expanded"), "false");
-  assert.equal(expandAction.getAttribute("aria-label"), "Show tabs in Research");
-  assert.equal(expandAction.textContent, "⌄");
+  assert.equal(
+    expandAction.getAttribute("aria-label"),
+    "Show tabs in Research",
+  );
+  assert.equal(expandAction.textContent, "▼");
 
   expandAction.getListener("click")();
   assert.equal(memberList.hidden, false);
   assert.equal(expandAction.getAttribute("aria-expanded"), "true");
-  assert.equal(expandAction.getAttribute("aria-label"), "Hide tabs in Research");
-  assert.equal(expandAction.textContent, "⌃");
+  assert.equal(
+    expandAction.getAttribute("aria-label"),
+    "Hide tabs in Research",
+  );
+  assert.equal(expandAction.textContent, "▲");
 
   expandAction.getListener("click")();
   assert.equal(memberList.hidden, true);
   assert.equal(expandAction.getAttribute("aria-expanded"), "false");
-  assert.equal(expandAction.textContent, "⌄");
+  assert.equal(expandAction.textContent, "▼");
 });
 
 test("popup CSS visually hides a member list after its second toggle", () => {

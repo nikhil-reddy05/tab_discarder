@@ -48,8 +48,8 @@
   function buildGroupSummaries(groups, tabs, tabStateModel) {
     return groups.map((group) => {
       const memberTabs = tabs.filter((tab) => tab.groupId === group.id);
-      const sleepingCount = memberTabs.filter(
-        (tab) => tabStateModel.deriveTabState(tab) === tabStateModel.states.SLEEPING,
+      const discardedCount = memberTabs.filter(
+        (tab) => tabStateModel.deriveTabState(tab) === tabStateModel.states.DISCARDED,
       ).length;
 
       return {
@@ -59,8 +59,8 @@
         colorClass: getGroupColorClass(group),
         memberTabs,
         totalCount: memberTabs.length,
-        awakeCount: memberTabs.length - sleepingCount,
-        sleepingCount,
+        awakeCount: memberTabs.length - discardedCount,
+        discardedCount,
       };
     });
   }
@@ -74,13 +74,13 @@
     if (
       renderOptions.tabListRenderer &&
       renderOptions.tabStateModel &&
-      renderOptions.onSleepTab
+      renderOptions.onDiscardTab
     ) {
       renderOptions.tabListRenderer.renderTabList(
         memberList,
         groupSummary.memberTabs,
         renderOptions.tabStateModel,
-        renderOptions.onSleepTab,
+        renderOptions.onDiscardTab,
         renderOptions.discardPolicy,
       );
     }
@@ -88,7 +88,7 @@
     return memberList;
   }
 
-  function createGroupRow(document, groupSummary, onSleepGroup, renderOptions) {
+  function createGroupRow(document, groupSummary, onDiscardGroup, renderOptions) {
     const row = document.createElement("li");
     row.className = "group-row";
 
@@ -113,7 +113,7 @@
 
     const summary = document.createElement("span");
     summary.className = "group-summary";
-    summary.textContent = `${groupSummary.totalCount} tabs · ${groupSummary.awakeCount} awake · ${groupSummary.sleepingCount} discarded`;
+    summary.textContent = `${groupSummary.totalCount} tabs · ${groupSummary.awakeCount} awake · ${groupSummary.discardedCount} discarded`;
     details.append(summary);
 
     header.append(details);
@@ -146,7 +146,7 @@
       setExpanded(memberList.hidden);
     });
     const action = document.createElement("button");
-    action.className = "group-sleep-action";
+    action.className = "group-discard-action";
     action.type = "button";
     action.textContent = "Discard group";
     action.addEventListener("click", async () => {
@@ -154,7 +154,7 @@
       action.textContent = "Discarding…";
 
       try {
-        await onSleepGroup(groupSummary.groupId);
+        await onDiscardGroup(groupSummary.groupId);
       } finally {
         action.disabled = false;
         action.textContent = "Discard group";
@@ -173,7 +173,7 @@
   function renderGroupList(
     container,
     groupSummaries,
-    onSleepGroup,
+    onDiscardGroup,
     renderOptions = {},
   ) {
     container.replaceChildren();
@@ -183,7 +183,7 @@
         createGroupRow(
           container.ownerDocument,
           groupSummary,
-          onSleepGroup,
+          onDiscardGroup,
           renderOptions,
         ),
       );

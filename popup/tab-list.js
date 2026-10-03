@@ -1,7 +1,7 @@
 (function registerTabListRenderer(globalScope) {
   const STATE_LABELS = Object.freeze({
     active: "Active",
-    sleeping: "Discarded",
+    discarded: "Discarded",
     "playing-audio": "Playing audio",
     pinned: "Pinned",
     "protected-domain": "Protected site",
@@ -92,7 +92,7 @@
     return favicon;
   }
 
-  function createTabRow(document, tab, tabStateModel, onSleep, policy) {
+  function createTabRow(document, tab, tabStateModel, onDiscard, policy) {
     const row = document.createElement("li");
     row.className = "tab-row";
 
@@ -110,7 +110,7 @@
     const presentation = getTabPresentation(tab, tabStateModel, policy);
     if (presentation.kind === "action") {
       const action = document.createElement("button");
-      action.className = "tab-sleep-action";
+      action.className = "tab-discard-action";
       action.type = "button";
       action.textContent = presentation.label;
       action.title = "Discard this tab";
@@ -119,7 +119,7 @@
         action.textContent = "Discarding…";
 
         try {
-          await onSleep(tab.id);
+          await onDiscard(tab.id);
         } catch {
           action.disabled = false;
           action.textContent = presentation.label;
@@ -136,14 +136,14 @@
     return row;
   }
 
-  function renderTabList(container, tabs, tabStateModel, onSleep, policy) {
+  function renderTabList(container, tabs, tabStateModel, onDiscard, policy) {
     container.replaceChildren();
     container.classList.remove("empty-section");
     container.removeAttribute("role");
 
     for (const tab of tabs) {
       container.append(
-        createTabRow(container.ownerDocument, tab, tabStateModel, onSleep, policy),
+        createTabRow(container.ownerDocument, tab, tabStateModel, onDiscard, policy),
       );
     }
   }

@@ -1,7 +1,7 @@
 (function registerRecentlyAwakenedList(globalScope) {
   const STATE_LABELS = Object.freeze({
     active: "Active",
-    sleeping: "Discarded",
+    discarded: "Discarded",
     "playing-audio": "Playing audio",
     pinned: "Pinned",
     "protected-domain": "Protected site",
@@ -44,7 +44,7 @@
     entry,
     tabStateModel,
     tabListRenderer,
-    onSleepAgain,
+    onDiscardAgain,
     now,
     policy,
   ) {
@@ -75,7 +75,7 @@
     const presentation = getRecentTabPresentation(entry.tab, tabStateModel, policy);
     if (presentation.kind === "action") {
       const action = document.createElement("button");
-      action.className = "recent-awakened-sleep-action";
+      action.className = "recent-awakened-discard-action";
       action.type = "button";
       action.textContent = presentation.label;
       action.title = "Discard this tab again";
@@ -84,7 +84,7 @@
         action.textContent = "Discarding…";
 
         try {
-          await onSleepAgain(entry.tab.id);
+          await onDiscardAgain(entry.tab.id);
         } catch {
           action.disabled = false;
           action.textContent = presentation.label;
@@ -106,7 +106,7 @@
     entries,
     tabStateModel,
     tabListRenderer,
-    onSleepAgain,
+    onDiscardAgain,
     now,
     policy,
   ) {
@@ -119,7 +119,7 @@
           entry,
           tabStateModel,
           tabListRenderer,
-          onSleepAgain,
+          onDiscardAgain,
           now,
           policy,
         ),

@@ -85,9 +85,9 @@ function loadPopup({
       "groupsList",
       "recentlyAwakenedSection",
       "recentlyAwakenedList",
-      "sleepOtherTabs",
-      "sleepThisWindow",
-      "sleepThisGroup",
+      "discardOtherTabs",
+      "discardThisWindow",
+      "discardThisGroup",
       "openOptions",
       "bulkActionStatus",
     ].map((id) => [id, createElement()]),
@@ -98,9 +98,9 @@ function loadPopup({
   const groupRenderCalls = [];
   const recentlyAwakenedRenderCalls = [];
   let openOptionsPageCallCount = 0;
-  let singleTabSleep;
-  let groupSleep;
-  let recentlyAwakenedSleep;
+  let singleTabDiscard;
+  let groupDiscard;
+  let recentlyAwakenedDiscard;
   const scheduledTimers = [];
   const tabEvents = {
     onActivated: createEvent(),
@@ -194,9 +194,9 @@ function loadPopup({
       },
     },
     tabDiscarderTabState: {
-      states: { SLEEPING: "sleeping" },
+      states: { DISCARDED: "discarded" },
       deriveTabState(tab) {
-        return tab.discarded ? "sleeping" : "awake";
+        return tab.discarded ? "discarded" : "awake";
       },
     },
     tabDiscarderTabFilter: { filterTabs: (currentTabs) => currentTabs },
@@ -205,9 +205,9 @@ function loadPopup({
       resultStatuses: { SUCCESS: "success", SKIPPED: "skipped", ERROR: "error" },
     },
     tabDiscarderTabList: {
-      renderTabList(_list, renderedTabs, _tabStateModel, onSleep) {
+      renderTabList(_list, renderedTabs, _tabStateModel, onDiscard) {
         renderCalls.push(renderedTabs);
-        singleTabSleep = onSleep;
+        singleTabDiscard = onDiscard;
       },
       renderTabListError() {},
       renderTabListNoResults() {},
@@ -226,10 +226,10 @@ function loadPopup({
         entries,
         _tabStateModel,
         _tabListRenderer,
-        onSleepAgain,
+        onDiscardAgain,
       ) {
         recentlyAwakenedRenderCalls.push(entries);
-        recentlyAwakenedSleep = onSleepAgain;
+        recentlyAwakenedDiscard = onDiscardAgain;
       },
     },
     tabDiscarderGroupList: {
@@ -246,9 +246,9 @@ function loadPopup({
           totalCount: currentTabs.filter((tab) => tab.groupId === group.id).length,
         }));
       },
-      renderGroupList(_list, summaries, onSleepGroup) {
+      renderGroupList(_list, summaries, onDiscardGroup) {
         groupRenderCalls.push(summaries);
-        groupSleep = onSleepGroup;
+        groupDiscard = onDiscardGroup;
       },
     },
   };
@@ -291,9 +291,9 @@ function loadPopup({
       ),
     }),
     getOpenOptionsPageCallCount: () => openOptionsPageCallCount,
-    sleepSingleTab: (...args) => singleTabSleep(...args),
-    sleepGroup: (...args) => groupSleep(...args),
-    sleepRecentlyAwakenedTab: (...args) => recentlyAwakenedSleep(...args),
+    discardSingleTab: (...args) => singleTabDiscard(...args),
+    discardGroup: (...args) => groupDiscard(...args),
+    discardRecentlyAwakenedTab: (...args) => recentlyAwakenedDiscard(...args),
   };
 }
 
@@ -332,7 +332,7 @@ test("loads current-window group metadata and joins it to current tabs", async (
   assert.equal(popup.elements.get("groupsSection").hidden, false);
 });
 
-test("Sleep group resolves live members and protects tabs that leave the group", async () => {
+test("Discard group resolves live members and protects tabs that leave the group", async () => {
   const discardCalls = [];
   const popup = loadPopup({
     tabs: [
@@ -352,7 +352,7 @@ test("Sleep group resolves live members and protects tabs that leave the group",
   });
 
   await new Promise((resolve) => setImmediate(resolve));
-  await popup.sleepGroup(3);
+  await popup.discardGroup(3);
 
   assert.equal(
     popup.queryCalls.some((query) => query.groupId === 3),
@@ -365,7 +365,7 @@ test("Sleep group resolves live members and protects tabs that leave the group",
   assert.equal(popup.groupRenderCalls.length, 2);
 });
 
-test("Sleep this group is available for an active grouped tab and reuses Sleep group", async () => {
+test("Discard this group is available for an active grouped tab and reuses Discard group", async () => {
   const discardCalls = [];
   const popup = loadPopup({
     tabs: [
@@ -385,7 +385,7 @@ test("Sleep this group is available for an active grouped tab and reuses Sleep g
   });
 
   await new Promise((resolve) => setImmediate(resolve));
-  const action = popup.elements.get("sleepThisGroup");
+  const action = popup.elements.get("discardThisGroup");
   assert.equal(action.hidden, false);
   assert.equal(action.disabled, false);
 
@@ -397,7 +397,7 @@ test("Sleep this group is available for an active grouped tab and reuses Sleep g
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 discarded · 1 skipped");
 });
 
-test("Sleep this group is hidden for an active ungrouped tab", async () => {
+test("Discard this group is hidden for an active ungrouped tab", async () => {
   const popup = loadPopup({
     tabs: [{ id: 1, windowId: 7, groupId: -1, active: true }],
     async discardTabs() {
@@ -407,12 +407,12 @@ test("Sleep this group is hidden for an active ungrouped tab", async () => {
 
   await new Promise((resolve) => setImmediate(resolve));
 
-  const action = popup.elements.get("sleepThisGroup");
+  const action = popup.elements.get("discardThisGroup");
   assert.equal(action.hidden, true);
   assert.equal(action.disabled, true);
 });
 
-test("Sleep other tabs and Sleep this window share the current-window batch action", async () => {
+test("Discard other tabs and Discard this window share the current-window batch action", async () => {
   const tabs = [
     { id: 1, active: true },
     { id: 2, active: false },
@@ -427,23 +427,23 @@ test("Sleep other tabs and Sleep this window share the current-window batch acti
     },
   });
 
-  await popup.elements.get("sleepOtherTabs").getListener("click")();
+  await popup.elements.get("discardOtherTabs").getListener("click")();
 
   assert.deepEqual(discardCalls, [[1, 2, 3]]);
   assert.equal(popup.queryCalls.length, 3);
   assert.ok(popup.queryCalls.every((query) => query.currentWindow === true));
-  assert.equal(popup.elements.get("sleepOtherTabs").disabled, false);
-  assert.equal(popup.elements.get("sleepThisWindow").disabled, false);
+  assert.equal(popup.elements.get("discardOtherTabs").disabled, false);
+  assert.equal(popup.elements.get("discardThisWindow").disabled, false);
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "1 discarded · 2 skipped");
 
-  await popup.elements.get("sleepThisWindow").getListener("click")();
+  await popup.elements.get("discardThisWindow").getListener("click")();
 
   assert.deepEqual(discardCalls, [[1, 2, 3], [1, 2, 3]]);
   assert.equal(popup.queryCalls.length, 5);
   assert.ok(popup.renderCalls.length > 0);
 });
 
-test("single-tab Sleep uses the current protection policy and refreshes the window", async () => {
+test("single-tab Discard uses the current protection policy and refreshes the window", async () => {
   const tabs = [{ id: 2, active: false, discarded: false }];
   const discardCalls = [];
   const popup = loadPopup({
@@ -459,7 +459,7 @@ test("single-tab Sleep uses the current protection policy and refreshes the wind
   });
 
   await new Promise((resolve) => setImmediate(resolve));
-  await popup.sleepSingleTab(2);
+  await popup.discardSingleTab(2);
 
   assert.deepEqual(Array.from(discardCalls[0].tabIds), [2]);
   assert.deepEqual(discardCalls[0].options.policy, {
@@ -471,7 +471,7 @@ test("single-tab Sleep uses the current protection policy and refreshes the wind
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
-test("single-tab Sleep keeps the first success when discard returns a replacement tab", async () => {
+test("single-tab Discard keeps the first success when discard returns a replacement tab", async () => {
   const tabA = { id: 31, windowId: 7, groupId: -1, active: false };
   const discardedTabB = {
     id: 32,
@@ -508,7 +508,7 @@ test("single-tab Sleep keeps the first success when discard returns a replacemen
   });
 
   await new Promise((resolve) => setImmediate(resolve));
-  const result = await popup.sleepSingleTab(tabA.id);
+  const result = await popup.discardSingleTab(tabA.id);
 
   assert.deepEqual(getCalls, [tabA.id]);
   assert.deepEqual(chromeDiscardCalls, [tabA.id]);
@@ -517,7 +517,7 @@ test("single-tab Sleep keeps the first success when discard returns a replacemen
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
-test("single-tab Sleep retries only after a genuine missing-tab result is mapped", async () => {
+test("single-tab Discard retries only after a genuine missing-tab result is mapped", async () => {
   const tabA = { id: 36, windowId: 7, groupId: -1, active: false };
   const tabB = { id: 37, windowId: 7, groupId: -1, active: false };
   const tabs = [tabA];
@@ -550,14 +550,14 @@ test("single-tab Sleep retries only after a genuine missing-tab result is mapped
   });
 
   await new Promise((resolve) => setImmediate(resolve));
-  const result = await popup.sleepSingleTab(tabA.id);
+  const result = await popup.discardSingleTab(tabA.id);
 
   assert.deepEqual(discardCalls, [[tabA.id], [tabB.id]]);
   assert.equal(result.status, "success");
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
-test("single-tab Sleep resolves a replaced row ID before the normal live refresh delay", async () => {
+test("single-tab Discard resolves a replaced row ID before the normal live refresh delay", async () => {
   const tabA = { id: 41, windowId: 7, groupId: -1, active: false };
   const tabB = { id: 42, windowId: 7, groupId: -1, active: false };
   const tabs = [tabA];
@@ -581,13 +581,13 @@ test("single-tab Sleep resolves a replaced row ID before the normal live refresh
   assert.equal(popup.getScheduledRefreshCount(), 0);
   assert.ok(popup.queryCalls.length > queryCountBeforeReplacement);
 
-  await popup.sleepSingleTab(tabA.id);
+  await popup.discardSingleTab(tabA.id);
 
   assert.deepEqual(chromeDiscardCalls, [tabB.id]);
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded.");
 });
 
-test("single-tab Sleep keeps live protection checks when the replacement is active", async () => {
+test("single-tab Discard keeps live protection checks when the replacement is active", async () => {
   const tabA = { id: 51, windowId: 7, groupId: -1, active: false };
   const activeTabB = { id: 52, windowId: 7, groupId: -1, active: true };
   const tabs = [tabA];
@@ -601,7 +601,7 @@ test("single-tab Sleep keeps live protection checks when the replacement is acti
   tabs.splice(0, 1, activeTabB);
   popup.tabEvents.onReplaced.emit(activeTabB.id, tabA.id);
 
-  await popup.sleepSingleTab(tabA.id);
+  await popup.discardSingleTab(tabA.id);
 
   assert.deepEqual(chromeDiscardCalls, []);
   assert.equal(
@@ -610,7 +610,7 @@ test("single-tab Sleep keeps live protection checks when the replacement is acti
   );
 });
 
-test("single-tab Sleep keeps pinned replacement tabs protected", async () => {
+test("single-tab Discard keeps pinned replacement tabs protected", async () => {
   const tabA = { id: 55, windowId: 7, groupId: -1, active: false };
   const pinnedTabB = {
     id: 56,
@@ -630,7 +630,7 @@ test("single-tab Sleep keeps pinned replacement tabs protected", async () => {
   tabs.splice(0, 1, pinnedTabB);
   popup.tabEvents.onReplaced.emit(pinnedTabB.id, tabA.id);
 
-  await popup.sleepSingleTab(tabA.id);
+  await popup.discardSingleTab(tabA.id);
 
   assert.deepEqual(chromeDiscardCalls, []);
   assert.equal(
@@ -639,7 +639,7 @@ test("single-tab Sleep keeps pinned replacement tabs protected", async () => {
   );
 });
 
-test("single-tab Sleep safely follows a chain of tab replacements", async () => {
+test("single-tab Discard safely follows a chain of tab replacements", async () => {
   const tabA = { id: 61, windowId: 7, groupId: -1, active: false };
   const tabB = { id: 62, windowId: 7, groupId: -1, active: false };
   const tabC = { id: 63, windowId: 7, groupId: -1, active: false };
@@ -662,7 +662,7 @@ test("single-tab Sleep safely follows a chain of tab replacements", async () => 
   tabs.splice(0, 1, tabC);
   popup.tabEvents.onReplaced.emit(tabC.id, tabB.id);
 
-  await popup.sleepSingleTab(tabA.id);
+  await popup.discardSingleTab(tabA.id);
 
   assert.deepEqual(Array.from(discardCalls[0]), [tabC.id]);
 });
@@ -693,7 +693,7 @@ test("a replacement that disappears is reported as stale UI instead of a discard
   tabs.splice(0, 1, tabB);
   popup.tabEvents.onReplaced.emit(tabB.id, tabA.id);
 
-  const result = await popup.sleepSingleTab(tabA.id);
+  const result = await popup.discardSingleTab(tabA.id);
 
   assert.deepEqual(Array.from(discardCalls[0]), [tabB.id]);
   assert.equal(result.status, "skipped");
@@ -704,7 +704,7 @@ test("a replacement that disappears is reported as stale UI instead of a discard
   );
 });
 
-test("window and group sleep actions use the latest stored protection policy", async () => {
+test("window and group discard actions use the latest stored protection policy", async () => {
   const discardCalls = [];
   const popup = loadPopup({
     tabs: [
@@ -721,8 +721,8 @@ test("window and group sleep actions use the latest stored protection policy", a
   });
 
   await new Promise((resolve) => setImmediate(resolve));
-  await popup.sleepGroup(3);
-  await popup.elements.get("sleepThisWindow").getListener("click")();
+  await popup.discardGroup(3);
+  await popup.elements.get("discardThisWindow").getListener("click")();
 
   assert.deepEqual(discardCalls[0].options.policy, {
     protectPinned: false,
@@ -734,7 +734,7 @@ test("window and group sleep actions use the latest stored protection policy", a
   });
 });
 
-test("Sleep again uses the policy-aware shared batch service and refreshes Recent", async () => {
+test("Discard again uses the policy-aware shared batch service and refreshes Recent", async () => {
   const discardCalls = [];
   const tabs = [
     { id: 1, windowId: 7, active: true, discarded: false, groupId: -1 },
@@ -765,7 +765,7 @@ test("Sleep again uses the policy-aware shared batch service and refreshes Recen
     [2, 1],
   );
 
-  await popup.sleepRecentlyAwakenedTab(2);
+  await popup.discardRecentlyAwakenedTab(2);
 
   assert.deepEqual(Array.from(discardCalls, (tabIds) => Array.from(tabIds)), [[2]]);
   assert.equal(popup.elements.get("bulkActionStatus").textContent, "Tab discarded again.");

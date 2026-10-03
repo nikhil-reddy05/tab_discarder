@@ -71,7 +71,7 @@ test("formats compact relative wake times", () => {
   assert.equal(formatRelativeTime(now - 172_800_000, now), "2d ago");
 });
 
-test("reflects protected recent tabs instead of offering Sleep again", () => {
+test("reflects protected recent tabs instead of offering Discard again", () => {
   assert.deepEqual(getRecentTabPresentation({ active: true }, tabStateModel), {
     kind: "badge",
     label: "Active",
@@ -105,11 +105,11 @@ test("labels a protected domain in Recently awakened", () => {
   );
 });
 
-test("renders live tab details safely and sends Sleep again through its callback", async () => {
+test("renders live tab details safely and sends Discard again through its callback", async () => {
   const document = createFakeDocument();
   const container = createFakeElement();
   container.ownerDocument = document;
-  const sleepCalls = [];
+  const discardCalls = [];
 
   renderRecentlyAwakenedList(
     container,
@@ -125,15 +125,15 @@ test("renders live tab details safely and sends Sleep again through its callback
     ],
     tabStateModel,
     tabListRenderer,
-    async (tabId) => sleepCalls.push(tabId),
+    async (tabId) => discardCalls.push(tabId),
     3_000,
   );
 
   assert.equal(container.children.length, 2);
   assert.equal(container.children[0].children[1].textContent, "Active");
 
-  const sleepAgain = container.children[1].children[1];
-  assert.equal(sleepAgain.textContent, "Discard again");
-  await sleepAgain.getListener("click")();
-  assert.deepEqual(sleepCalls, [2]);
+  const discardAgain = container.children[1].children[1];
+  assert.equal(discardAgain.textContent, "Discard again");
+  await discardAgain.getListener("click")();
+  assert.deepEqual(discardCalls, [2]);
 });

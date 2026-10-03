@@ -101,7 +101,7 @@ test("waits for an already-queued wake before reading recent history", async () 
   await queuedWake;
 });
 
-test("preserves a known sleeping tab when it moves to another window", async () => {
+test("preserves a known discarded tab when it moves to another window", async () => {
   const tracker = createTracker({
     tabsApi: createTabsApi([{ id: 7, windowId: 70, discarded: false }]),
     sessionStorage: createSessionStorage(),

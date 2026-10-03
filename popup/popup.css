@@ -472,9 +472,9 @@ h2 {
 }
 
 .tab-state-badge,
-.tab-sleep-action,
-.recent-awakened-sleep-action,
-.group-sleep-action,
+.tab-discard-action,
+.recent-awakened-discard-action,
+.group-discard-action,
 .group-expand-action {
   flex: 0 0 auto;
   border: 1px solid var(--border);
@@ -491,9 +491,9 @@ h2 {
   background: var(--accent-soft);
 }
 
-.tab-sleep-action,
-.recent-awakened-sleep-action,
-.group-sleep-action {
+.tab-discard-action,
+.recent-awakened-discard-action,
+.group-discard-action {
   background: var(--accent-soft);
   color: var(--accent);
   cursor: pointer;
@@ -514,9 +514,9 @@ h2 {
   font-size: 14px;
 }
 
-.tab-sleep-action:disabled,
-.recent-awakened-sleep-action:disabled,
-.group-sleep-action:disabled {
+.tab-discard-action:disabled,
+.recent-awakened-discard-action:disabled,
+.group-discard-action:disabled {
   background: var(--disabled-bg);
   color: var(--disabled-text);
   cursor: progress;

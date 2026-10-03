@@ -51,7 +51,7 @@ test("accepts Chrome's returned discarded tab without a follow-up get", async ()
   });
 });
 
-test("returns an error without fabricating a sleeping tab when discard is unconfirmed", async () => {
+test("returns an error without fabricating a discarded tab when discard is unconfirmed", async () => {
   const tab = { id: 22, active: false, discarded: false };
   const tabsApi = createTabsApi(tab, { discardResult: undefined });
 
@@ -97,7 +97,7 @@ test("returns an error when Chrome returns an awake tab from discard", async () 
   });
 });
 
-test("manual Sleep attempts discard after switching away from a previously active tab", async () => {
+test("manual Discard attempts discard after switching away from a previously active tab", async () => {
   const tabAWhileActive = { id: 1, active: true, discarded: false };
   const tabAAfterDiscard = { id: 1, active: false, discarded: true };
   const calls = [];

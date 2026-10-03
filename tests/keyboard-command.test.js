@@ -52,7 +52,7 @@ function loadServiceWorker() {
       },
     },
     tabDiscarderRecentlyAwakenedCommand: {
-      async sleepMostRecentEligibleAwakenedTab(options) {
+      async discardMostRecentEligibleAwakenedTab(options) {
         calls.push(options);
       },
     },
@@ -90,7 +90,7 @@ test("declares a remappable MV3 command with platform-appropriate defaults", () 
   assert.match(command.description, /recently awakened/i);
 });
 
-test("service worker handles only the explicit sleep-recent command", async () => {
+test("service worker handles only the explicit discard-recent command", async () => {
   const worker = loadServiceWorker();
 
   worker.commandListener("other-command");

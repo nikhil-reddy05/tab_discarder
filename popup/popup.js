@@ -39,12 +39,12 @@ async function initializeTheme() {
 }
 
 function formatTabSummary(tabs) {
-  const sleepingCount = tabs.filter(
-    (tab) => deriveTabState(tab) === tabStates.SLEEPING,
+  const discardedCount = tabs.filter(
+    (tab) => deriveTabState(tab) === tabStates.DISCARDED,
   ).length;
-  const awakeCount = tabs.length - sleepingCount;
+  const awakeCount = tabs.length - discardedCount;
 
-  return `${awakeCount} awake · ${sleepingCount} discarded`;
+  return `${awakeCount} awake · ${discardedCount} discarded`;
 }
 
 async function renderCurrentWindowTabs() {
@@ -75,7 +75,7 @@ async function getLiveRecentlyAwakenedEntries() {
         const tab = await chrome.tabs.get(record.tabId);
 
         // The worker normally removes these records when a tab closes or
-        // sleeps again. Rechecking the live tab keeps the popup safe during
+        // is discarded again. Rechecking the live tab keeps the popup safe during
         // event-delivery races and avoids displaying a stale tab ID.
         if (
           tab.windowId !== record.windowId ||
@@ -105,7 +105,7 @@ async function renderRecentlyAwakenedTabs() {
       entries,
       globalThis.tabDiscarderTabState,
       globalThis.tabDiscarderTabList,
-      sleepRecentlyAwakenedTab,
+      discardRecentlyAwakenedTab,
       undefined,
       await getDiscardPolicy(),
     );
@@ -120,12 +120,12 @@ function renderWindowTabs(tabs, policy) {
   currentWindowTabs = tabs;
   currentDiscardPolicy = policy;
   document.getElementById("tabSummary").textContent = formatTabSummary(tabs);
-  updateSleepThisGroupAction(tabs);
+  updateDiscardThisGroupAction(tabs);
   renderFilteredTabs();
 }
 
-function updateSleepThisGroupAction(tabs) {
-  const action = document.getElementById("sleepThisGroup");
+function updateDiscardThisGroupAction(tabs) {
+  const action = document.getElementById("discardThisGroup");
   const activeTab = tabs.find((tab) => tab.active === true);
   const isActiveTabGrouped = isGroupedTab(activeTab);
 
@@ -153,10 +153,10 @@ async function renderCurrentWindowGroups(tabs, policy) {
       tabs,
       globalThis.tabDiscarderTabState,
     );
-    renderGroupList(list, groupSummaries, sleepGroup, {
+    renderGroupList(list, groupSummaries, discardGroup, {
       tabListRenderer: globalThis.tabDiscarderTabList,
       tabStateModel: globalThis.tabDiscarderTabState,
-      onSleepTab: sleepTab,
+      onDiscardTab: discardTab,
       discardPolicy: policy,
     });
     section.hidden = groupSummaries.length === 0;
@@ -166,7 +166,7 @@ async function renderCurrentWindowGroups(tabs, policy) {
   }
 }
 
-async function sleepGroup(groupId) {
+async function discardGroup(groupId) {
   const status = document.getElementById("bulkActionStatus");
   status.textContent = "Discarding eligible group tabs…";
 
@@ -192,8 +192,8 @@ async function sleepGroup(groupId) {
   }
 }
 
-async function sleepThisGroup() {
-  const action = document.getElementById("sleepThisGroup");
+async function discardThisGroup() {
+  const action = document.getElementById("discardThisGroup");
   const status = document.getElementById("bulkActionStatus");
   action.disabled = true;
 
@@ -202,12 +202,12 @@ async function sleepThisGroup() {
     const activeTab = tabs.find((tab) => tab.active === true);
 
     if (!isGroupedTab(activeTab)) {
-      updateSleepThisGroupAction(tabs);
+      updateDiscardThisGroupAction(tabs);
       status.textContent = "Active tab is not in a group.";
       return { status: resultStatuses.SKIPPED };
     }
 
-    return await sleepGroup(activeTab.groupId);
+    return await discardGroup(activeTab.groupId);
   } catch {
     status.textContent = "Could not find the active tab's group right now.";
     return { status: resultStatuses.ERROR };
@@ -233,12 +233,12 @@ function renderFilteredTabs() {
     tabList,
     filteredTabs,
     globalThis.tabDiscarderTabState,
-    sleepTab,
+    discardTab,
     currentDiscardPolicy,
   );
 }
 
-async function sleepTab(tabId) {
+async function discardTab(tabId) {
   const status = document.getElementById("bulkActionStatus");
 
   try {
@@ -265,13 +265,13 @@ async function sleepTab(tabId) {
   }
 }
 
-async function sleepRecentlyAwakenedTab(tabId) {
+async function discardRecentlyAwakenedTab(tabId) {
   const status = document.getElementById("bulkActionStatus");
 
   try {
     // discardTabs re-fetches the tab and applies the shared safety policy
     // immediately before discard, so a tab that became active/protected since
-    // this popup rendered is skipped rather than forced to sleep.
+    // this popup rendered is skipped rather than forced to discard.
     const { result, tabResult, stale } = await discardReplacementAwareTab(
       tabId,
       getDiscardPolicy(),
@@ -315,14 +315,14 @@ function formatBulkDiscardSummary(summary) {
   return parts.length > 0 ? parts.join(" · ") : "No tabs to discard.";
 }
 
-function setCurrentWindowSleepActionsDisabled(disabled) {
-  document.getElementById("sleepOtherTabs").disabled = disabled;
-  document.getElementById("sleepThisWindow").disabled = disabled;
+function setCurrentWindowDiscardActionsDisabled(disabled) {
+  document.getElementById("discardOtherTabs").disabled = disabled;
+  document.getElementById("discardThisWindow").disabled = disabled;
 }
 
-async function sleepEligibleBackgroundTabsInCurrentWindow() {
+async function discardEligibleBackgroundTabsInCurrentWindow() {
   const status = document.getElementById("bulkActionStatus");
-  setCurrentWindowSleepActionsDisabled(true);
+  setCurrentWindowDiscardActionsDisabled(true);
   status.textContent = "Discarding eligible tabs…";
 
   try {
@@ -337,19 +337,19 @@ async function sleepEligibleBackgroundTabsInCurrentWindow() {
     status.textContent = "Could not discard tabs right now.";
     return { status: resultStatuses.ERROR };
   } finally {
-    setCurrentWindowSleepActionsDisabled(false);
+    setCurrentWindowDiscardActionsDisabled(false);
   }
 }
 
 // Under the current V3 scope these labels have identical current-window
 // semantics; separate wrappers retain their UI intent for a future
 // cross-window action without duplicating the batch implementation.
-function sleepOtherTabs() {
-  return sleepEligibleBackgroundTabsInCurrentWindow();
+function discardOtherTabs() {
+  return discardEligibleBackgroundTabsInCurrentWindow();
 }
 
-function sleepThisWindow() {
-  return sleepEligibleBackgroundTabsInCurrentWindow();
+function discardThisWindow() {
+  return discardEligibleBackgroundTabsInCurrentWindow();
 }
 
 function initializeSearch() {
@@ -360,14 +360,14 @@ function initializeSearch() {
 
 function initializeQuickActions() {
   document
-    .getElementById("sleepOtherTabs")
-    .addEventListener("click", () => sleepOtherTabs());
+    .getElementById("discardOtherTabs")
+    .addEventListener("click", () => discardOtherTabs());
   document
-    .getElementById("sleepThisWindow")
-    .addEventListener("click", () => sleepThisWindow());
+    .getElementById("discardThisWindow")
+    .addEventListener("click", () => discardThisWindow());
   document
-    .getElementById("sleepThisGroup")
-    .addEventListener("click", () => sleepThisGroup());
+    .getElementById("discardThisGroup")
+    .addEventListener("click", () => discardThisGroup());
 }
 
 async function openOptions() {

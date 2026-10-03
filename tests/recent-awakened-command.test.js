@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const {
   noEligibleRecentTabReason,
   findMostRecentEligibleAwakenedTab,
-  sleepMostRecentEligibleAwakenedTab,
+  discardMostRecentEligibleAwakenedTab,
 } = require("../lib/recent-awakened-command.js");
 
 function createTabsApi(tabs) {
@@ -39,7 +39,7 @@ const tabStateModel = {
       return { eligible: false, reason: "playing-audio" };
     }
     if (tab.discarded) {
-      return { eligible: false, reason: "sleeping" };
+      return { eligible: false, reason: "discarded" };
     }
     return { eligible: true };
   },
@@ -184,7 +184,7 @@ test("fails safely without a candidate and never discards an arbitrary tab", asy
   ]);
   const discardCalls = [];
 
-  const result = await sleepMostRecentEligibleAwakenedTab({
+  const result = await discardMostRecentEligibleAwakenedTab({
     recentlyAwakenedTracker: createTracker([
       { tabId: 1, windowId: 10, awakenedAt: 200 },
       { tabId: 2, windowId: 10, awakenedAt: 100 },
@@ -215,7 +215,7 @@ test("delegates only the selected tab to the shared discard service", async () =
     summary: { discarded: 0, skipped: 1, failed: 0 },
   };
 
-  const result = await sleepMostRecentEligibleAwakenedTab({
+  const result = await discardMostRecentEligibleAwakenedTab({
     recentlyAwakenedTracker: createTracker([
       { tabId: 1, windowId: 10, awakenedAt: 100 },
       { tabId: 2, windowId: 10, awakenedAt: 200 },
@@ -253,7 +253,7 @@ test("uses one policy snapshot for candidate selection and discard", async () =>
     },
   };
 
-  await sleepMostRecentEligibleAwakenedTab({
+  await discardMostRecentEligibleAwakenedTab({
     recentlyAwakenedTracker: createTracker([
       { tabId: 2, windowId: 10, awakenedAt: 200 },
     ]),

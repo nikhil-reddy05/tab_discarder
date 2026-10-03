@@ -63,7 +63,7 @@ function createElement() {
   };
 }
 
-test("keeps active, sleeping, audible, and pinned tabs ineligible by default", () => {
+test("keeps active, discarded, audible, and pinned tabs ineligible by default", () => {
   assert.equal(tabStateModel.getDiscardEligibility({ active: true }).eligible, false);
   assert.equal(tabStateModel.getDiscardEligibility({ discarded: true }).eligible, false);
   assert.equal(tabStateModel.getDiscardEligibility({ audible: true }).eligible, false);
@@ -71,7 +71,7 @@ test("keeps active, sleeping, audible, and pinned tabs ineligible by default", (
   assert.equal(tabStateModel.getDiscardEligibility({ active: false }).eligible, true);
 });
 
-test("Sleep other tabs skips active and protected tabs while sleeping normal backgrounds", async () => {
+test("Discard other tabs skips active and protected tabs while discarding normal backgrounds", async () => {
   const tabsApi = createTabsApi([
     { id: 1, active: true },
     { id: 2, audible: true },
@@ -89,7 +89,7 @@ test("Sleep other tabs skips active and protected tabs while sleeping normal bac
   assert.deepEqual(result.summary, { discarded: 1, skipped: 4, failed: 0 });
 });
 
-test("Sleep group targets only its members and leaves an active member awake", async () => {
+test("Discard group targets only its members and leaves an active member awake", async () => {
   const tabsApi = createTabsApi([
     { id: 1, groupId: 10, active: true },
     { id: 2, groupId: 10, active: false },

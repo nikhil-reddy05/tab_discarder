@@ -48,7 +48,7 @@ chrome.commands.onCommand.addListener((command) => {
     .getProtectionSettings()
     .then((policy) =>
       globalThis.tabDiscarderRecentlyAwakenedCommand
-        .sleepMostRecentEligibleAwakenedTab({
+        .discardMostRecentEligibleAwakenedTab({
           recentlyAwakenedTracker,
           tabsApi: chrome.tabs,
           tabStateModel: globalThis.tabDiscarderTabState,

@@ -13,13 +13,13 @@ const {
 
 test("derives the display state using the safety-first precedence", () => {
   assert.equal(deriveTabState({ active: true, discarded: true }), states.ACTIVE);
-  assert.equal(deriveTabState({ discarded: true, audible: true }), states.SLEEPING);
+  assert.equal(deriveTabState({ discarded: true, audible: true }), states.DISCARDED);
   assert.equal(deriveTabState({ audible: true, pinned: true }), states.PLAYING_AUDIO);
   assert.equal(deriveTabState({ pinned: true }), states.PINNED);
   assert.equal(deriveTabState({}), states.AWAKE);
 });
 
-test("protects active and sleeping tabs from discard", () => {
+test("protects active and discarded tabs from discard", () => {
   assert.deepEqual(getDiscardEligibility({ active: true }), {
     eligible: false,
     state: states.ACTIVE,
@@ -27,8 +27,8 @@ test("protects active and sleeping tabs from discard", () => {
   });
   assert.deepEqual(getDiscardEligibility({ discarded: true }), {
     eligible: false,
-    state: states.SLEEPING,
-    reason: "sleeping",
+    state: states.DISCARDED,
+    reason: "discarded",
   });
 });
 
