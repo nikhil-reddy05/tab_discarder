@@ -1,4 +1,14 @@
-# Tab Discarder
+<h1>
+  <img src="icons/icon128.png" width="48" valign="middle" alt="Tab Discarder icon">
+  Tab Discarder
+</h1>
+
+
+<p>
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT">
+  <img src="https://img.shields.io/badge/Manifest-V3-orange" alt="Manifest V3">
+  <img src="https://img.shields.io/badge/Chrome-Extension-blue" alt="Chrome Extension">
+</p>
 
 **Tab Discarder** is a lightweight Chrome extension for manually discarding inactive or background tabs to reduce Chrome memory usage without closing them. Discard individual tabs, eligible tabs in the current window, or entire Chrome tab groups while protecting active, pinned, audible, and selected sites. Discarded tabs remain in the tab strip and reload when you return to them.
 
