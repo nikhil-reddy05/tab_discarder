@@ -10,6 +10,8 @@
   --disabled-text: #98a2b3;
   --focus: #4854c7;
   --shadow: 0 8px 24px rgba(31, 41, 55, 0.08);
+  --scrollbar-thumb: rgba(90, 100, 125, 0.28);
+  --scrollbar-thumb-hover: rgba(90, 100, 125, 0.46);
 }
 
 [data-theme="dark"] {
@@ -24,6 +26,8 @@
   --disabled-text: #8790a2;
   --focus: #b2bbff;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb: rgba(190, 200, 225, 0.26);
+  --scrollbar-thumb-hover: rgba(190, 200, 225, 0.44);
 }
 
 * {
@@ -61,8 +65,31 @@ input {
   max-height: 600px;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   overscroll-behavior: contain;
   padding: 16px;
+}
+
+.popup-shell:hover {
+  scrollbar-color: var(--scrollbar-thumb-hover) transparent;
+}
+
+.popup-shell::-webkit-scrollbar {
+  width: 5px;
+}
+
+.popup-shell::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.popup-shell::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+}
+
+.popup-shell:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-hover);
 }
 
 .popup-header,

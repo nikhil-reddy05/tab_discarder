@@ -31,6 +31,22 @@ test("theme changes preserve authored popup and search-control geometry", () => 
   assert.doesNotMatch(popupScript, /toggleTheme|localStorage|matchMedia/);
 });
 
+test("popup shell uses a subtle theme-aware scrollbar without changing its scroll behavior", () => {
+  assert.match(popupCss, /:root\s*\{[\s\S]*?--scrollbar-thumb:\s*rgba\(90, 100, 125, 0\.28\);/);
+  assert.match(
+    popupCss,
+    /\[data-theme="dark"\]\s*\{[\s\S]*?--scrollbar-thumb:\s*rgba\(190, 200, 225, 0\.26\);/,
+  );
+  assert.match(
+    popupCss,
+    /\.popup-shell\s*\{[\s\S]*?overflow-y:\s*auto;[\s\S]*?scrollbar-gutter:\s*stable;[\s\S]*?scrollbar-width:\s*thin;[\s\S]*?scrollbar-color:\s*var\(--scrollbar-thumb\) transparent;/,
+  );
+  assert.match(popupCss, /\.popup-shell:hover\s*\{[\s\S]*?scrollbar-color:\s*var\(--scrollbar-thumb-hover\) transparent;/);
+  assert.match(popupCss, /\.popup-shell::\-webkit-scrollbar\s*\{[\s\S]*?width:\s*5px;/);
+  assert.match(popupCss, /\.popup-shell::\-webkit-scrollbar-track\s*\{[\s\S]*?background:\s*transparent;/);
+  assert.match(popupCss, /\.popup-shell::\-webkit-scrollbar-thumb\s*\{[\s\S]*?border-radius:\s*999px;[\s\S]*?background:\s*var\(--scrollbar-thumb\);/);
+});
+
 test("popup no longer includes a focused binary theme toggle", () => {
   assert.doesNotMatch(popupHtml, /toggleTheme|theme-control|theme-toggle/);
   assert.doesNotMatch(popupCss, /theme-control|theme-toggle/);
