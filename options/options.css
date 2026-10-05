@@ -1,6 +1,8 @@
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  --accent: #475569;
+  --focus: #b91c1c;
 }
 
 [data-theme="dark"] {
@@ -75,6 +77,10 @@ input {
   flex: 0 0 auto;
 }
 
+[data-theme="light"] input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
 .theme-select {
   min-width: 96px;
   padding: 6px 8px;
@@ -129,4 +135,11 @@ button {
   min-height: 1.5em;
   margin-top: 14px;
   color: GrayText;
+}
+
+[data-theme="light"] button:focus-visible,
+[data-theme="light"] input:focus-visible,
+[data-theme="light"] select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }

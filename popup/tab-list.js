@@ -37,7 +37,20 @@
     return {
       kind: "badge",
       label: STATE_LABELS[eligibility.reason] || STATE_LABELS[state] || "Awake",
+      tone: getBadgeTone(eligibility.reason || state),
     };
+  }
+
+  function getBadgeTone(state) {
+    if (state === "discarded") {
+      return "discarded";
+    }
+
+    if (["playing-audio", "pinned", "protected-domain"].includes(state)) {
+      return "protected";
+    }
+
+    return "informational";
   }
 
   function getFaviconUrl(tab, runtime = globalScope.chrome?.runtime) {
@@ -128,7 +141,7 @@
       row.append(action);
     } else {
       const badge = document.createElement("span");
-      badge.className = "tab-state-badge";
+      badge.className = `tab-state-badge tab-state-badge--${presentation.tone}`;
       badge.textContent = presentation.label;
       row.append(badge);
     }

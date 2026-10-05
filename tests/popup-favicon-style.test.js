@@ -16,11 +16,11 @@ test("favicon presentation preserves the standard fallback container styling", (
   assert.ok(manifest.permissions.includes("favicon"));
   assert.match(
     popupCss,
-    /\.tab-favicon\s*\{[\s\S]*?width:\s*16px;[\s\S]*?height:\s*16px;[\s\S]*?border-radius:\s*3px;[\s\S]*?background:\s*var\(--accent-soft\);/,
+    /\.tab-favicon\s*\{[\s\S]*?width:\s*16px;[\s\S]*?height:\s*16px;[\s\S]*?border-radius:\s*3px;[\s\S]*?background:\s*var\(--favicon-bg\);/,
   );
   assert.match(
     popupCss,
     /\.tab-favicon-image\s*\{[\s\S]*?width:\s*16px;[\s\S]*?height:\s*16px;[\s\S]*?background:\s*var\(--card\);[\s\S]*?object-fit:\s*contain;/,
   );
-  assert.doesNotMatch(popupCss, /favicon-bg|drop-shadow|filter:\s*invert\(/);
+  assert.doesNotMatch(popupCss, /drop-shadow|filter:\s*invert\(/);
 });

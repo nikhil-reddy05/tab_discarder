@@ -1,14 +1,32 @@
 :root {
-  --bg: #f7f8fb;
-  --text: #1f2937;
-  --muted-text: #667085;
-  --card: #ffffff;
-  --border: #e6e8ee;
-  --accent: #5560d5;
-  --accent-soft: #eef0ff;
+  --page-bg: #f8fafc;
+  --surface: #ffffff;
+  --text-primary: #1f2937;
+  --text-secondary: #667085;
+  --border: #e5e7eb;
+  --action-primary: #dc2626;
+  --action-primary-hover: #b91c1c;
+  --action-soft: #fb9a9a;
+  --protected-bg: #ea9c9c;
+  --protected-text: #475569;
+  --discarded-bg: #dc2626;
+  --discarded-text: #ffffff;
+  --bg: var(--page-bg);
+  --text: var(--text-primary);
+  --muted-text: var(--text-secondary);
+  --card: var(--surface);
+  --action-border: var(--action-primary);
+  --action-text: #ffffff;
+  --protected-border: var(--border);
+  --informational-bg: #9dbbed;
+  --informational-text: #475569;
+  --informational-border: #e2e8f0;
+  --discarded-border: var(--border);
+  --favicon-bg: #f1f5f9;
+  --favicon-text: var(--text-secondary);
   --disabled-bg: #f1f2f6;
   --disabled-text: #98a2b3;
-  --focus: #4854c7;
+  --focus: #b91c1c;
   --shadow: 0 8px 24px rgba(31, 41, 55, 0.08);
   --scrollbar-thumb: rgba(90, 100, 125, 0.28);
   --scrollbar-thumb-hover: rgba(90, 100, 125, 0.46);
@@ -22,6 +40,22 @@
   --border: #363d4e;
   --accent: #9aa5ff;
   --accent-soft: #30385a;
+  --action-primary: var(--accent-soft);
+  --action-primary-hover: var(--accent-soft);
+  --action-soft: var(--accent-soft);
+  --action-text: var(--accent);
+  --action-border: var(--border);
+  --protected-bg: var(--accent-soft);
+  --protected-text: var(--muted-text);
+  --protected-border: var(--border);
+  --informational-bg: var(--accent-soft);
+  --informational-text: var(--muted-text);
+  --informational-border: var(--border);
+  --discarded-bg: var(--accent-soft);
+  --discarded-text: var(--muted-text);
+  --discarded-border: var(--border);
+  --favicon-bg: var(--accent-soft);
+  --favicon-text: var(--accent);
   --disabled-bg: #2a3040;
   --disabled-text: #8790a2;
   --focus: #b2bbff;
@@ -227,9 +261,14 @@ h2 {
 }
 
 .quick-action-list button:not(:disabled) {
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--action-border);
+  background: var(--action-primary);
+  color: var(--action-text);
   cursor: pointer;
+}
+
+.quick-action-list button:not(:disabled):hover {
+  background: var(--action-primary-hover);
 }
 
 .availability-note {
@@ -472,8 +511,8 @@ h2 {
   place-items: center;
   overflow: hidden;
   border-radius: 3px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--favicon-bg);
+  color: var(--favicon-text);
   font-size: 11px;
   line-height: 1;
 }
@@ -515,15 +554,36 @@ h2 {
 }
 
 .tab-state-badge {
-  background: var(--accent-soft);
+  border-color: var(--informational-border);
+  background: var(--informational-bg);
+  color: var(--informational-text);
+}
+
+.tab-state-badge--protected {
+  border-color: var(--protected-border);
+  background: var(--protected-bg);
+  color: var(--protected-text);
+}
+
+.tab-state-badge--discarded {
+  border-color: var(--discarded-border);
+  background: var(--discarded-bg);
+  color: var(--discarded-text);
 }
 
 .tab-discard-action,
 .recent-awakened-discard-action,
 .group-discard-action {
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--action-border);
+  background: var(--action-primary);
+  color: var(--action-text);
   cursor: pointer;
+}
+
+.tab-discard-action:not(:disabled):hover,
+.recent-awakened-discard-action:not(:disabled):hover,
+.group-discard-action:not(:disabled):hover {
+  background: var(--action-primary-hover);
 }
 
 .group-expand-action {

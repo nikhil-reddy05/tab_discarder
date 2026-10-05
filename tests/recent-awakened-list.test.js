@@ -75,10 +75,12 @@ test("reflects protected recent tabs instead of offering Discard again", () => {
   assert.deepEqual(getRecentTabPresentation({ active: true }, tabStateModel), {
     kind: "badge",
     label: "Active",
+    tone: "informational",
   });
   assert.deepEqual(getRecentTabPresentation({ pinned: true }, tabStateModel), {
     kind: "badge",
     label: "Pinned",
+    tone: "protected",
   });
   assert.deepEqual(getRecentTabPresentation({}, tabStateModel), {
     kind: "action",
@@ -101,7 +103,7 @@ test("labels a protected domain in Recently awakened", () => {
     getRecentTabPresentation({ url: "https://example.com" }, domainPolicyModel, {
       protectedDomains: ["example.com"],
     }),
-    { kind: "badge", label: "Protected site" },
+    { kind: "badge", label: "Protected site", tone: "protected" },
   );
 });
 
@@ -131,6 +133,10 @@ test("renders live tab details safely and sends Discard again through its callba
 
   assert.equal(container.children.length, 2);
   assert.equal(container.children[0].children[1].textContent, "Active");
+  assert.equal(
+    container.children[0].children[1].className,
+    "tab-state-badge tab-state-badge--informational",
+  );
 
   const discardAgain = container.children[1].children[1];
   assert.equal(discardAgain.textContent, "Discard again");

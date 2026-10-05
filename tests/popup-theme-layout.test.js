@@ -47,6 +47,48 @@ test("popup shell uses a subtle theme-aware scrollbar without changing its scrol
   assert.match(popupCss, /\.popup-shell::\-webkit-scrollbar-thumb\s*\{[\s\S]*?border-radius:\s*999px;[\s\S]*?background:\s*var\(--scrollbar-thumb\);/);
 });
 
+test("light theme uses the minimal muted palette while dark theme retains its existing palette", () => {
+  assert.match(
+    popupCss,
+    /:root\s*\{[\s\S]*?--page-bg:\s*#f8fafc;[\s\S]*?--surface:\s*#ffffff;[\s\S]*?--text-primary:\s*#1f2937;[\s\S]*?--text-secondary:\s*#667085;[\s\S]*?--border:\s*#e5e7eb;[\s\S]*?--action-primary:\s*#dc2626;[\s\S]*?--action-primary-hover:\s*#b91c1c;[\s\S]*?--action-soft:\s*#fee2e2;[\s\S]*?--focus:\s*#b91c1c;/,
+  );
+  assert.match(
+    popupCss,
+    /\[data-theme="dark"\]\s*\{[\s\S]*?--accent:\s*#9aa5ff;[\s\S]*?--accent-soft:\s*#30385a;[\s\S]*?--focus:\s*#b2bbff;/,
+  );
+});
+
+test("light theme keeps actions, protected statuses, and discarded statuses visually distinct", () => {
+  assert.match(
+    popupCss,
+    /:root\s*\{[\s\S]*?--protected-bg:\s*#e5e7eb;[\s\S]*?--protected-text:\s*#475569;[\s\S]*?--discarded-bg:\s*#e7e7e7;[\s\S]*?--discarded-text:\s*#5f6673;/,
+  );
+  assert.match(
+    popupCss,
+    /\.tab-title\s*\{[\s\S]*?color:\s*var\(--text\);/,
+  );
+  assert.match(
+    popupCss,
+    /\.tab-state-badge--protected\s*\{[\s\S]*?background:\s*var\(--protected-bg\);[\s\S]*?color:\s*var\(--protected-text\);/,
+  );
+  assert.match(
+    popupCss,
+    /\.tab-state-badge--discarded\s*\{[\s\S]*?background:\s*var\(--discarded-bg\);[\s\S]*?color:\s*var\(--discarded-text\);/,
+  );
+  assert.match(
+    popupCss,
+    /\.quick-action-list button:not\(:disabled\)\s*\{[\s\S]*?background:\s*var\(--action-primary\);[\s\S]*?color:\s*var\(--action-text\);/,
+  );
+  assert.match(
+    popupCss,
+    /\.tab-discard-action,[\s\S]*?background:\s*var\(--action-primary\);[\s\S]*?color:\s*var\(--action-text\);/,
+  );
+  assert.match(
+    popupCss,
+    /\.quick-action-list button:not\(:disabled\):hover\s*\{[\s\S]*?background:\s*var\(--action-primary-hover\);/,
+  );
+});
+
 test("popup no longer includes a focused binary theme toggle", () => {
   assert.doesNotMatch(popupHtml, /toggleTheme|theme-control|theme-toggle/);
   assert.doesNotMatch(popupCss, /theme-control|theme-toggle/);

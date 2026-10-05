@@ -89,18 +89,22 @@ test("maps centralized state and eligibility to the tab-row presentation", () =>
   assert.deepEqual(getTabPresentation({ active: true }, tabStateModel), {
     kind: "badge",
     label: "Active",
+    tone: "informational",
   });
   assert.deepEqual(getTabPresentation({ discarded: true }, tabStateModel), {
     kind: "badge",
     label: "Discarded",
+    tone: "discarded",
   });
   assert.deepEqual(getTabPresentation({ audible: true }, tabStateModel), {
     kind: "badge",
     label: "Playing audio",
+    tone: "protected",
   });
   assert.deepEqual(getTabPresentation({ pinned: true }, tabStateModel), {
     kind: "badge",
     label: "Pinned",
+    tone: "protected",
   });
   assert.deepEqual(getTabPresentation({}, tabStateModel), {
     kind: "action",
@@ -120,6 +124,6 @@ test("maps centralized state and eligibility to the tab-row presentation", () =>
       tabStateModel,
       { protectedDomains: ["example.com"] },
     ),
-    { kind: "badge", label: "Protected site" },
+    { kind: "badge", label: "Protected site", tone: "protected" },
   );
 });

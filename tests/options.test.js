@@ -4,6 +4,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+const optionsCss = fs.readFileSync(
+  path.join(__dirname, "../options/options.css"),
+  "utf8",
+);
+
 function createElement() {
   const listeners = new Map();
 
@@ -111,6 +116,18 @@ test("registers the focused options page in the manifest", () => {
   );
 
   assert.equal(manifest.options_page, "options/options.html");
+});
+
+test("uses a neutral light-theme control accent and restrained red focus", () => {
+  assert.match(
+    optionsCss,
+    /:root\s*\{[\s\S]*?--accent:\s*#475569;[\s\S]*?--focus:\s*#b91c1c;/,
+  );
+  assert.match(optionsCss, /\[data-theme="light"\]\s+input\[type="checkbox"\]\s*\{[\s\S]*?accent-color:\s*var\(--accent\);/);
+  assert.match(
+    optionsCss,
+    /\[data-theme="light"\]\s+button:focus-visible,[\s\S]*?\[data-theme="light"\]\s+input:focus-visible,[\s\S]*?\[data-theme="light"\]\s+select:focus-visible\s*\{[\s\S]*?outline:\s*2px solid var\(--focus\);/,
+  );
 });
 
 test("loads saved protection choices and persists only the changed setting", async () => {
