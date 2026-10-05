@@ -74,6 +74,17 @@ Open Settings from the popup to:
 
 Settings are stored locally through Chrome extension storage and shared by the popup, options page, and background worker.
 
+## Screenshots
+
+### Main popup and current-window tabs
+![Tab Discarder main popup](screenshots/start.png)
+
+### Tab groups and recently awakened tabs
+![Tab Discarder groups and recently awakened tabs](screenshots/end.png)
+
+### Settings and protections
+![Tab Discarder settings and protections](screenshots/settings.png)
+
 ## Permissions
 
 Tab Discarder requests only the Chrome permissions used by its shipped features:
